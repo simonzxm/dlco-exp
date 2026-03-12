@@ -7,6 +7,8 @@ module top (
 );
 
   wire [3:0] F;
+  wire [3:0] tens = (F >= 10) ? 4'd1 : 4'd0;
+  wire [3:0] ones = (F >= 10) ? (F - 4'd10) : F;
 
   alu_s calc (
       .A(SW[10:7]),
@@ -20,7 +22,7 @@ module top (
 
   display result (
       .clk (CLK100MHZ),
-      .data({28'd0, F}),
+      .data({24'd0, tens, ones}),
       .an  (AN),
       .seg (SEG)
   );
