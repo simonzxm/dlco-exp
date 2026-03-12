@@ -33,4 +33,9 @@ module display (
     endcase
   end
 
+  bcd7seg decoder (
+      .bcd(bcd),
+      .seg(seg)
+  );
+
 endmodule

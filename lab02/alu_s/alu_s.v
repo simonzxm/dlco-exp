@@ -9,7 +9,12 @@ module alu_s (
 );
 
   //add your code here
-  always @(A or B or ALUctr) begin
+  always @(*) begin
+    F    = 4'd0;
+    cf   = 1'b0;
+    of   = 1'b0;
+    zero = 1'b0;
+
     case (ALUctr)
       3'b000: begin
         {cf, F} = A + B;
@@ -28,10 +33,10 @@ module alu_s (
       3'b110: F = $signed(A) < $signed(B);
       3'b111: F = A == B;
       default: begin
-        F = 4'd0;
-        cf = 1'd0;
-        of = 1'd0;
-        zero = 1'd0;
+        F    = 4'd0;
+        cf   = 1'b0;
+        of   = 1'b0;
+        zero = 1'b0;
       end
     endcase
   end
