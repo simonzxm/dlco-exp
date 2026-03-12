@@ -4,7 +4,7 @@ module top (
     output wire [4:0] LED
 );
 
-  exp2 enhanced (
+  enhanced encoder (
       .X(SW[7:0]),
       .en(SW[8]),
       .valid(LED[4]),
