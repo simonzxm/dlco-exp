@@ -38,7 +38,8 @@ module top (
   );
 
   timer seconds (
-      .clk(clk),
+      .clk(CLK100MHZ),
+      .en_1s(clk),
       .second(second),
       .start(start),
       .pause(pause),

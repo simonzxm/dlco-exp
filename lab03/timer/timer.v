@@ -1,5 +1,6 @@
 module timer (
     input clk,
+    input en_1s,
     input start,
     input pause,
     input reset,
@@ -16,7 +17,7 @@ module timer (
       running <= 1;
     end else if (pause) begin
       running <= 0;
-    end else if (running) begin
+    end else if (running && en_1s) begin
       if (second[3:0] == 9) begin
         second[3:0] <= 0;
         second[7:4] <= (second[7:4] == 5) ? 0 : (second[7:4] + 1);
