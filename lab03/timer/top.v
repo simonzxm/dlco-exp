@@ -3,6 +3,7 @@ module top (
     input BTNL,
     input BTNC,
     input BTNR,
+    output LED,
     output [6:0] SEG,
     output [7:0] AN
 );
@@ -43,7 +44,8 @@ module top (
       .second(second),
       .start(start),
       .pause(pause),
-      .reset(reset)
+      .reset(reset),
+      .led(LED)
   );
 
   display numbers (

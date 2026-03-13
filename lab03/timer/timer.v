@@ -4,7 +4,8 @@ module timer (
     input start,
     input pause,
     input reset,
-    output reg [7:0] second
+    output reg [7:0] second,
+    output led
 );
 
   reg running;
@@ -26,5 +27,7 @@ module timer (
       end
     end
   end
+
+  assign led = second == 8'b01011001;
 
 endmodule
