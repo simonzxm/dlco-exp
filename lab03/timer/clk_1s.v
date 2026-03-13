@@ -3,7 +3,7 @@ module clk_1s (
     output reg  clk_1s
 );
 
-  reg [25:0] counter;
+  reg [26:0] counter;
 
   always @(posedge clk) begin
     if (counter == 99999999) begin

@@ -4,11 +4,6 @@ module button (
     output btn_edge
 );
 
-  // 跨时钟域同步 (防止亚稳态)
-  // 我在询问 AI 如何使用按钮的时候
-  // AI 说需要写这个来处理按钮的异步信号
-  // 我不知道到底有什么用
-  // 不过还是先写上吧
   reg sync_0, sync_1;
   always @(posedge clk) begin
     sync_0 <= btn;
@@ -37,4 +32,3 @@ module button (
   assign btn_edge = btn_stable & (~btn_delayed);
 
 endmodule
-
