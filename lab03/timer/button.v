@@ -1,34 +1,26 @@
 module button (
-    input  clk,
-    input  btn,
-    output btn_edge
+    input  wire clk,
+    input  wire tick_10ms,
+    input  wire btn,
+    output wire btn_edge
 );
 
-  reg sync_0, sync_1;
+  // Synchronize & Debounce
+  reg delay1 = 1'b0;
+  reg delay2 = 1'b0;
   always @(posedge clk) begin
-    sync_0 <= btn;
-    sync_1 <= sync_0;
-  end
-
-  reg [19:0] count;
-  reg btn_stable;
-
-  always @(posedge clk) begin
-    if (sync_1 != btn_stable) begin
-      count <= count + 1;
-      if (count == 20'd1_000_000) begin
-        btn_stable <= sync_1;
-        count <= 0;
-      end
-    end else begin
-      count <= 0;
+    if (tick_10ms) begin
+      delay1 <= btn;
+      delay2 <= delay1;
     end
   end
+  wire btn_stable = delay1 & delay2;
 
-  reg btn_delayed;
+  // Posedge Detect
+  reg  stable_delay = 1'b0;
   always @(posedge clk) begin
-    btn_delayed <= btn_stable;
+    stable_delay <= btn_stable;
   end
-  assign btn_edge = btn_stable & (~btn_delayed);
+  assign btn_edge = btn_stable & ~stable_delay;
 
 endmodule
