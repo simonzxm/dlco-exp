@@ -3,3 +3,5 @@
 *.jou
 *.html
 *.xml
+*.aux
+*.toc
