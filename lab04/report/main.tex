@@ -42,7 +42,7 @@
 本实验中的寄存器堆为 16$\times$8 位结构，采用 \textbf{异步读、同步写} 的设计方式。读取时通过组合逻辑直接输出，写入则在时钟上升沿完成。
 
 \begin{lstlisting}
-module regfile16x8 (
+module regfile (
     input        clk,
     input        we,
     input  [3:0] addr,
@@ -95,12 +95,27 @@ set_property -dict [list \
 顶层模块将寄存器堆和 RAM 共用同一组地址开关和时钟按钮，通过一个选择开关区分写入目标：
 
 \begin{lstlisting}
-wire [3:0] addr  = SW[3:0];              // 共用地址
-wire [7:0] wdata = {4'b0000, SW[7:4]};   // 4位写入数据
-wire       sel   = SW[8];                 // 存储器选择
+  // SW[13] 为写使能，SW[12] 为选择开关
+  wire reg_we = SW[13] & ~SW[12];
+  wire ram_we = SW[13] &  SW[12];
 
-wire reg_we = BTNU & ~sel;   // sel=0 写寄存器堆
-wire ram_we = BTNU &  sel;   // sel=1 写 RAM
+  wire [7:0] reg_rdata;
+  regfile regfile_inst (
+      .clk  (BTNC),
+      .we   (reg_we),
+      .addr (SW[3:0]),  // SW[ 3:0] 为地址信号
+      .wdata(SW[11:4]), // SW[11:4] 为写入数据
+      .rdata(reg_rdata)
+  );
+
+  wire [7:0] ram_rdata;
+  blk_mem_gen_0 ram_inst (
+      .clka (BTNC),
+      .wea  (ram_we),
+      .addra(SW[3:0]),  // SW[ 3:0] 为地址信号
+      .dina (SW[11:4]), // SW[11:4] 为写入数据
+      .douta(ram_rdata)
+  );
 \end{lstlisting}
 
 开发板按钮 \texttt{BTNC} 直接作为两个存储器的时钟信号，每按一次产生一个时钟周期。由于 \texttt{BTNC} 并非专用时钟引脚，XDC 中需设置：
@@ -108,7 +123,7 @@ wire ram_we = BTNU &  sel;   // sel=1 写 RAM
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets BTNC_IBUF]
 \end{lstlisting}
 
-数码管显示方面，使用一个统一的 8 位动态扫描驱动 \texttt{display8}，右侧 4 位（AN[3:0]）显示寄存器堆读出值，左侧 4 位（AN[7:4]）显示 RAM 读出值。译码器 \texttt{hex7seg} 支持 0--F 的十六进制显示。
+数码管显示方面，使用一个统一的 8 位动态扫描驱动 \texttt{display}，右侧 4 位（AN[3:0]）显示寄存器堆读出值，左侧 4 位（AN[7:4]）显示 RAM 读出值。译码器 \texttt{hex7seg} 支持 0--F 的十六进制显示。
 
 \section{实验观察与分析}
 
@@ -121,20 +136,51 @@ set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets BTNC_IBUF]
 
 \subsection{综合后的实现方式}
 
-在 Vivado 的 Schematic 中可以观察到：
-\begin{itemize}
-    \item \textbf{寄存器堆}综合为 \textbf{Distributed RAM}，利用 FPGA 的 LUT（查找表）资源实现。这是因为异步读的行为特性与 LUT 的组合逻辑天然匹配。
-    \item \textbf{RAM（IP 核）}综合为 \textbf{Block RAM}，使用了 1 个 RAMB18E1 硬件原语。Block RAM 是 FPGA 内嵌的专用存储资源，天然支持同步读写操作。
-\end{itemize}
+通过 Vivado 的 Primitives 报告，可以直接观察到两个存储器使用了不同的硬件原语：
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{存储器} & \textbf{使用的原语} & \textbf{实现方式} \\
+\hline
+寄存器堆 (\texttt{regfile\_inst}) & RAMS32 $\times$ 4 & Distributed RAM（LUT） \\
+\hline
+RAM (\texttt{ram\_inst}) & RAMB18E1 $\times$ 1 & Block RAM \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{寄存器堆}使用了 4 个 \texttt{RAMS32}（Single-port Distributed RAM 原语），属于 Distributed Memory 类别。这是因为 Verilog 代码中使用了 \texttt{assign} 实现异步读取，这种组合逻辑行为只能用 LUT 来实现，Vivado 自动将其综合为分布式 RAM。4 个 \texttt{RAMS32} 各提供 32$\times$1 的存储，组合起来实现 16$\times$8 的地址空间（每个 RAMS32 负责 2 位输出数据）。
+
+\textbf{RAM（IP 核）}使用了 1 个 \texttt{RAMB18E1}，属于 Block Memory 类别。Block RAM 是 FPGA 芯片内嵌的专用存储硬件，天然支持同步读写操作。16$\times$8 仅需要 128 bit 的存储，远小于一个 RAMB18E1 提供的 18Kbit 容量，因此只使用了 1 个。
 
 \subsection{资源消耗}
 
-在 Report Utilization 中可以观察到：
+根据 Vivado 的 Report Utilization，各模块的资源占用如下：
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{模块实例} & \textbf{Total LUTs} & \textbf{LUTRAMs} & \textbf{FFs} & \textbf{RAMB18} \\
+\hline
+\texttt{top}（整体） & 19 & 4 & 17 & 1 \\
+\hline
+\texttt{regfile\_inst} & 5 & 4 & 0 & 0 \\
+\hline
+\texttt{ram\_inst} & 0 & 0 & 0 & 1 \\
+\hline
+\texttt{display\_inst} & 13 & 0 & 17 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+从表中可以清晰看到：
 \begin{itemize}
-    \item IP 核生成的 RAM 使用了 \textbf{1 个 Block RAM}（RAMB18E1）。
-    \item 寄存器堆使用了 \textbf{LUT}（Slice Logic）资源，没有占用任何 Block RAM。
+    \item IP 核生成的 RAM 使用了 \textbf{1 个 RAMB18}（占 Block RAM Tile 的 0.5 个，利用率 0.37\%），\textbf{不消耗任何 LUT 资源}。
+    \item 寄存器堆使用了 \textbf{4 个 LUTRAM + 1 个逻辑 LUT}，\textbf{不消耗任何 Block RAM}，也不使用触发器（FF = 0），因为异步读不需要寄存器来锁存输出。
+    \item 数码管显示模块消耗了最多的逻辑资源（13 个 LUT 和 17 个 FF），主要用于动态扫描计数器和多路选择逻辑。
 \end{itemize}
 
-这体现了两种存储实现的本质区别：分布式存储灵活但消耗通用逻辑资源，块存储高效但只能同步访问。
+这体现了两种存储实现的本质区别：分布式 RAM 灵活、支持异步读取，但消耗通用 LUT 资源；Block RAM 高效、容量大，但只能同步访问。
 
 \end{document}
