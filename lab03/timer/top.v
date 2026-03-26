@@ -63,10 +63,10 @@ module top (
   );
 
   display display_inst (
-      .clk(CLK100MHZ),
+      .clk (CLK100MHZ),
       .data({24'd0, timer_value}),
-      .an(AN),
-      .seg(SEG)
+      .an  (AN),
+      .seg (SEG)
   );
 
 endmodule
