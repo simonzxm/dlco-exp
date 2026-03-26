@@ -1,24 +1,20 @@
 module top (
-    input        CLK100MHZ,
-    input  [8:0] SW,
-    input        BTNC,
-    input        BTNU,
-    output [6:0] SEG,
-    output [7:0] AN
+    input         CLK100MHZ,
+    input  [13:0] SW,
+    input         BTNC,
+    output [ 6:0] SEG,
+    output [ 7:0] AN
 );
 
-  wire [3:0] addr = SW[3:0];
-  wire [7:0] wdata = {4'b0000, SW[7:4]};
-  wire       sel = SW[8];
-  wire       reg_we = BTNU & ~sel;
-  wire       ram_we = BTNU & sel;
+  wire reg_we = SW[13] & ~SW[12];
+  wire ram_we = SW[13] &  SW[12];
 
   wire [7:0] reg_rdata;
   regfile regfile_inst (
       .clk  (BTNC),
       .we   (reg_we),
-      .addr (addr),
-      .wdata(wdata),
+      .addr (SW[3:0]),
+      .wdata(SW[11:4]),
       .rdata(reg_rdata)
   );
 
@@ -26,8 +22,8 @@ module top (
   blk_mem_gen_0 ram_inst (
       .clka (BTNC),
       .wea  (ram_we),
-      .addra(addr),
-      .dina (wdata),
+      .addra(SW[3:0]),
+      .dina (SW[11:4]),
       .douta(ram_rdata)
   );
 

@@ -1,6 +1,6 @@
 module hex7seg (
     input      [3:0] hex,
-    output reg [6:0] seg   // active-low: {CA, CB, CC, CD, CE, CF, CG}
+    output reg [6:0] seg
 );
 
   always @(*)
