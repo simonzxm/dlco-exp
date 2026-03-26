@@ -1,0 +1,88 @@
+\documentclass[12pt, a4paper]{ctexart}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+% Code snippet settings
+\lstset{
+    language=Verilog,
+    basicstyle=\ttfamily\small,
+    frame=single,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    breaklines=true
+}
+
+\begin{document}
+
+% 封面
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge\bfseries 实验报告\par}
+    \vspace{2cm}
+    {\Large 课程：数字逻辑与计算机组成实验\par}
+    \vspace{1cm}
+    {\Large 实验三：计数器和时钟\par}
+    \vspace{4cm}
+    {\large 姓名：\underline{\makebox[4cm]{郑袭明}}\par}
+    \vspace{1cm}
+    {\large 学号：\underline{\makebox[4cm]{251502027}}\par}
+    \vspace{1cm}
+    {\large 日期：\today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{时钟使能模块设计（分频器）}
+本系统利用 \texttt{tick\_gen.v} 模块产生各个特定频率的时钟使能脉冲 \texttt{tick}，没有使用实验手册中的时钟分频模块。
+\begin{lstlisting}
+always @(posedge clk) begin
+    if (cnt >= MAX_COUNT) cnt <= 32'd0;
+    else cnt <= cnt + 1;
+end
+assign tick = (cnt == MAX_COUNT);
+\end{lstlisting}
+在 100MHz 系统主时钟下，如果需要生成 1Hz 的使能脉冲来驱动秒表，只需设置 \texttt{MAX\_COUNT} 参数为 99999999。内部计数器 \texttt{cnt} 每次归零时会输出一个时钟周期的高电平脉冲，所有依赖该频率的模块会在检测到该高电平时更新状态。由于此模块是参数化设计的，它也被多次复用，用来产生 1000Hz (用于数码管扫描) 和 100Hz (用于按键防抖和百分之一秒计时) 的分频使能信号。
+
+\section{按键防抖设计}
+实验中独立设计了 \texttt{button.v} 模块来处理按键的机械抖动。
+\begin{lstlisting}
+always @(posedge clk) begin
+    if (tick_10ms) begin
+        delay1 <= btn;
+        delay2 <= delay1;
+    end
+end
+wire btn_stable = delay1 & delay2;
+\end{lstlisting}
+模块采用了一个 100Hz (即周期为 10ms) 的使能脉冲 \texttt{tick\_10ms} 进行降频采样。内部使用了两个寄存器 \texttt{delay1} 和 \texttt{delay2}，只有当连续两次采样到的按键状态都为高电平时，信号 \texttt{btn\_stable} 才输出为高。这样可以有效过滤掉持续时间小于 10ms 的机械抖动。
+
+\section{秒表计时器设计（基础验收）}
+此部分代码在 \texttt{timer/timer.v}。系统利用上述分频产生的 1Hz 脉冲 \texttt{tick\_1s} 进行二十进制 (BCD) 计数。
+\begin{itemize}
+    \item \textbf{控制逻辑：} 设置了一个 \texttt{running} 状态寄存器。按下 \texttt{start} 键置 1 开始计时，按下 \texttt{pause} 键置 0 暂停计时。
+    \item \textbf{进位机制：} 个位 \texttt{ones} 每收到一个 \texttt{tick\_1s} 高电平就加一，满 9 归零并让十位 \texttt{tens} 加一。当十位为 5 且个位从 9 进位时 (即 59 秒结束时)，下一秒将十位和个位同时清零，并输出一个时钟周期的高电平给 \texttt{led} 发光二极管作为结束提示信号。
+\end{itemize}
+
+\section{多功能电子钟设计（拓展验收）}
+在 \texttt{top.v} 顶层模块中，主要划分为四种模式：Mode 0 (时钟)、Mode 1 (调时)、Mode 2 (闹钟) 和 Mode 3 (秒表)。
+
+\subsection{时钟与调时逻辑 (\texttt{clock\_core.v})}
+\begin{itemize}
+    \item \textbf{进位逻辑：} 为了方便调时和走时复用，模块解耦了每一级的进位条件。例如，通过 \texttt{wire sec\_carry = (sec\_tens == 5) \&\& (sec\_ones == 9);} 产生秒级向分级的进位信号。小时位采用 24 小时制进位判定，即当小时为 23 时准备清零。
+    \item \textbf{调时处理：} 当进入 Mode 1 调时模式后，系统断开 1Hz 时钟的自然累加，改用按钮产生的触发沿作为加减信号。在减法操作时加入了边界借位处理：例如个位为 0 时减 1 会恢复成 9 并且让十位减 1；当整体为 0 时减 1 会恢复成 59，这有效避免了减法运算导致数字下溢的错误。
+\end{itemize}
+
+\subsection{闹铃逻辑 (\texttt{alarm.v})}
+此模块通过 \texttt{ALARM\_SW} 开关使能。它在后台直接比较设定的闹钟时间与当前时间：只有当 \texttt{cur\_hour == alarm\_hour} 且 \texttt{cur\_min == alarm\_min} 成立，并且当前秒数恰好为 0 时，才会拉高信号点亮 LED 进行闪烁提示。
+
+\subsection{秒表逻辑 (\texttt{stopwatch.v})}
+与主时钟不同，秒表模块使用了 10ms 使能脉冲驱动，实现了精确到 1/100 秒的计数 (对应代码里的 \texttt{csec} 变量)。计时的进位顺序为：10ms 满进位 -> 秒加一 -> 分加一。模块包含独立的 \texttt{start\_pause} 和 \texttt{reset} 按钮来实现控制启停和清零操作。
+
+\subsection{全局多路复用}
+在 \texttt{top.v} 的设计中，通过一个通过 \texttt{mode} 切换的多路选择器 (MUX) 提取当前需要的按需输出的计数值，统一送给 \texttt{display.v} 模块进行数码管动态扫描显示。这种结构设计以及对 \texttt{button.v} 模块在不同按键上的复用调用，避免了大量的重复代码，不仅降低了芯片逻辑资源的占用，也大大简化了代码架构。
+\end{document}
