@@ -1,0 +1,38 @@
+Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2020.2 (lin64) Build 3064766 Wed Nov 18 09:12:47 MST 2020
+| Date         : Fri Mar 27 00:24:46 2026
+| Host         : archlinux running 64-bit Arch Linux
+| Command      : report_utilization -hierarchical -file ./build/reports/utilization_hierarchical.txt
+| Design       : top
+| Device       : 7a100tcsg324-1
+| Design State : Routed
+-----------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++----------------------------------------------+--------------------------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+|                   Instance                   |                   Module                   | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP Blocks |
++----------------------------------------------+--------------------------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+| top                                          |                                      (top) |         19 |         15 |       4 |    0 |  17 |      0 |      1 |          0 |
+|   (top)                                      |                                      (top) |          1 |          1 |       0 |    0 |   0 |      0 |      0 |          0 |
+|   display_inst                               |                                    display |         13 |         13 |       0 |    0 |  17 |      0 |      0 |          0 |
+|   ram_inst                                   |                              blk_mem_gen_0 |          0 |          0 |       0 |    0 |   0 |      0 |      1 |          0 |
+|     U0                                       |            blk_mem_gen_0blk_mem_gen_v8_4_4 |          0 |          0 |       0 |    0 |   0 |      0 |      1 |          0 |
+|       inst_blk_mem_gen                       |      blk_mem_gen_0blk_mem_gen_v8_4_4_synth |          0 |          0 |       0 |    0 |   0 |      0 |      1 |          0 |
+|         gnbram.gnativebmg.native_blk_mem_gen |               blk_mem_gen_0blk_mem_gen_top |          0 |          0 |       0 |    0 |   0 |      0 |      1 |          0 |
+|           valid.cstr                         |      blk_mem_gen_0blk_mem_gen_generic_cstr |          0 |          0 |       0 |    0 |   0 |      0 |      1 |          0 |
+|             ramloop[0].ram.r                 |        blk_mem_gen_0blk_mem_gen_prim_width |          0 |          0 |       0 |    0 |   0 |      0 |      1 |          0 |
+|               prim_init.ram                  | blk_mem_gen_0blk_mem_gen_prim_wrapper_init |          0 |          0 |       0 |    0 |   0 |      0 |      1 |          0 |
+|   regfile_inst                               |                                    regfile |          5 |          1 |       4 |    0 |   0 |      0 |      0 |          0 |
++----------------------------------------------+--------------------------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+
