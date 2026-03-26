@@ -23,10 +23,10 @@ module timer (
   end
 
   always @(posedge clk) begin
-    led <= 0;
     if (reset) begin
       ones <= 0;
       tens <= 0;
+      led  <= 0;
     end else if (running && tick_1s) begin
       if (ones == 9) begin
         ones <= 0;
@@ -35,9 +35,11 @@ module timer (
           led  <= 1;
         end else begin
           tens <= tens + 1;
+          led  <= 0;
         end
       end else begin
         ones <= ones + 1;
+        led  <= 0;
       end
     end
   end
