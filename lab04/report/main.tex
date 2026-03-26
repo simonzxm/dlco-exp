@@ -143,14 +143,14 @@ set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets BTNC_IBUF]
 \hline
 \textbf{存储器} & \textbf{使用的原语} & \textbf{实现方式} \\
 \hline
-寄存器堆 (\texttt{regfile\_inst}) & RAMS32 $\times$ 4 & Distributed RAM（LUT） \\
+寄存器堆 (\texttt{regfile\_inst}) & RAMS32 $\times$ 8 & Distributed RAM（LUT） \\
 \hline
 RAM (\texttt{ram\_inst}) & RAMB18E1 $\times$ 1 & Block RAM \\
 \hline
 \end{tabular}
 \end{center}
 
-\textbf{寄存器堆}使用了 4 个 \texttt{RAMS32}（Single-port Distributed RAM 原语），属于 Distributed Memory 类别。这是因为 Verilog 代码中使用了 \texttt{assign} 实现异步读取，这种组合逻辑行为只能用 LUT 来实现，Vivado 自动将其综合为分布式 RAM。4 个 \texttt{RAMS32} 各提供 32$\times$1 的存储，组合起来实现 16$\times$8 的地址空间（每个 RAMS32 负责 2 位输出数据）。
+\textbf{寄存器堆}使用了 8 个 \texttt{RAMS32}（Single-port Distributed RAM 原语），属于 Distributed Memory 类别。这是因为 Verilog 代码中使用了 \texttt{assign} 实现异步读取，这种组合逻辑行为只能用 LUT 来实现，Vivado 自动将其综合为分布式 RAM。8 个 \texttt{RAMS32} 各提供 32$\times$1 的存储，组合起来实现 16$\times$8 的地址空间（每个 RAMS32 负责 1 位输出数据）。
 
 \textbf{RAM（IP 核）}使用了 1 个 \texttt{RAMB18E1}，属于 Block Memory 类别。Block RAM 是 FPGA 芯片内嵌的专用存储硬件，天然支持同步读写操作。16$\times$8 仅需要 128 bit 的存储，远小于一个 RAMB18E1 提供的 18Kbit 容量，因此只使用了 1 个。
 
@@ -163,9 +163,9 @@ RAM (\texttt{ram\_inst}) & RAMB18E1 $\times$ 1 & Block RAM \\
 \hline
 \textbf{模块实例} & \textbf{Total LUTs} & \textbf{LUTRAMs} & \textbf{FFs} & \textbf{RAMB18} \\
 \hline
-\texttt{top}（整体） & 19 & 4 & 17 & 1 \\
+\texttt{top}（整体） & 27 & 8 & 17 & 1 \\
 \hline
-\texttt{regfile\_inst} & 5 & 4 & 0 & 0 \\
+\texttt{regfile\_inst} & 13 & 8 & 0 & 0 \\
 \hline
 \texttt{ram\_inst} & 0 & 0 & 0 & 1 \\
 \hline
