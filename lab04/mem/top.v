@@ -36,7 +36,6 @@ module top (
   wire [7:0] ram_rdata;
   blk_mem_gen_0 u_ram (
       .clka  (BTNC),
-      .ena   (1'b1),
       .wea   (ram_we),
       .addra (addr),
       .dina  (wdata),

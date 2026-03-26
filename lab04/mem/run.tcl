@@ -2,12 +2,12 @@ set PART xc7a100tcsg324-1
 set BUILD_DIR ./build
 set IP_DIR ./build/ip
 
-# Create IP output directory
+# Create output directories
 file mkdir $BUILD_DIR
 file mkdir $IP_DIR
 
 # ============================================================
-# Step 1: Generate Block RAM IP core (16x8 single-port RAM)
+# Step 1: Create in-memory project and generate Block RAM IP
 # ============================================================
 create_project -in_memory -part $PART
 
@@ -15,7 +15,7 @@ create_project -in_memory -part $PART
 create_ip -name blk_mem_gen -vendor xilinx.com -library ip -version 8.4 \
     -module_name blk_mem_gen_0 -dir $IP_DIR
 
-# Configure: Single Port RAM, 8-bit width, 16-deep, .coe init
+# Configure: Single Port RAM, 8-bit width, 16-deep, .coe init, no ena port
 set_property -dict [list \
     CONFIG.Memory_Type {Single_Port_RAM} \
     CONFIG.Write_Width_A {8} \
@@ -29,17 +29,14 @@ set_property -dict [list \
     CONFIG.Coe_File [file normalize ./ram_init.coe] \
 ] [get_ips blk_mem_gen_0]
 
-# Generate IP targets and synthesize
+# Generate and synthesize IP
 generate_target all [get_ips blk_mem_gen_0]
 synth_ip [get_ips blk_mem_gen_0]
 
-close_project
-
 # ============================================================
-# Step 2: Synthesize the full design
+# Step 2: Read design sources and synthesize
 # ============================================================
 read_verilog [glob ./*.v]
-read_verilog [glob $IP_DIR/blk_mem_gen_0/synth/*.v]
 read_xdc [glob ./*.xdc]
 
 synth_design -top top -part $PART
@@ -48,3 +45,5 @@ place_design
 route_design
 
 write_bitstream -force $BUILD_DIR/top.bit
+
+close_project
