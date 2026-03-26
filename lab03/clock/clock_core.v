@@ -2,7 +2,7 @@ module clock_core (
     input wire clk,
     input wire tick_1s,
     input wire setting,
-    input wire [1:0] adj_field,  // 0=hour, 1=min, 2=sec
+    input wire [1:0] adj_field,
     input wire adj_up,
     input wire adj_down,
     output reg [3:0] hour_tens,
@@ -13,16 +13,13 @@ module clock_core (
     output reg [3:0] sec_ones
 );
 
-  // Normal tick: seconds increment with carry
-  // Setting mode: clock keeps running, adj_up/adj_down adjust selected field
-
-  // --- Second counting ---
   wire sec_carry = (sec_tens == 5) && (sec_ones == 9);
   wire min_carry = (min_tens == 5) && (min_ones == 9);
   wire hour_carry = (hour_tens == 2) && (hour_ones == 3);
 
+  // Second
   always @(posedge clk) begin
-    // Second: normal tick
+    // Normal
     if (tick_1s) begin
       if (sec_ones == 9) begin
         sec_ones <= 0;
@@ -33,7 +30,7 @@ module clock_core (
       end
     end
 
-    // Second: adjustment
+    // Adjustment
     if (setting && adj_field == 2'd2) begin
       if (adj_up) begin
         if (sec_carry) begin
@@ -60,9 +57,9 @@ module clock_core (
     end
   end
 
-  // --- Minute counting ---
+  // Minute
   always @(posedge clk) begin
-    // Minute: normal carry from second
+    // Normal
     if (tick_1s && sec_carry) begin
       if (min_ones == 9) begin
         min_ones <= 0;
@@ -73,7 +70,7 @@ module clock_core (
       end
     end
 
-    // Minute: adjustment
+    // Adjustment
     if (setting && adj_field == 2'd1) begin
       if (adj_up) begin
         if (min_carry) begin
@@ -100,9 +97,9 @@ module clock_core (
     end
   end
 
-  // --- Hour counting ---
+  // Hour
   always @(posedge clk) begin
-    // Hour: normal carry from minute
+    // Normal
     if (tick_1s && sec_carry && min_carry) begin
       if (hour_carry) begin
         hour_tens <= 0;
@@ -115,7 +112,7 @@ module clock_core (
       end
     end
 
-    // Hour: adjustment
+    // Adjustment
     if (setting && adj_field == 2'd0) begin
       if (adj_up) begin
         if (hour_carry) begin

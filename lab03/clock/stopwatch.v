@@ -24,7 +24,7 @@ module stopwatch (
   wire csec_carry = (csec_tens == 9) && (csec_ones == 9);
   wire sec_carry = (sec_tens == 5) && (sec_ones == 9);
 
-  // Centisecond counting
+  // Centisecond
   always @(posedge clk) begin
     if (reset && !running) begin
       csec_tens <= 0;
@@ -40,7 +40,7 @@ module stopwatch (
     end
   end
 
-  // Second counting
+  // Second
   always @(posedge clk) begin
     if (reset && !running) begin
       sec_tens <= 0;
@@ -56,7 +56,7 @@ module stopwatch (
     end
   end
 
-  // Minute counting
+  // Minute
   always @(posedge clk) begin
     if (reset && !running) begin
       min_tens <= 0;

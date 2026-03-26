@@ -2,7 +2,7 @@ module alarm (
     input wire clk,
     input wire tick_1s,
     input wire setting,
-    input wire [1:0] adj_field,  // 0=hour, 1=min
+    input wire [1:0] adj_field,
     input wire adj_up,
     input wire adj_down,
     input wire alarm_on,
@@ -27,7 +27,7 @@ module alarm (
   wire hour_carry = (alarm_hour_tens == 2) && (alarm_hour_ones == 3);
   wire min_carry = (alarm_min_tens == 5) && (alarm_min_ones == 9);
 
-  // Alarm time adjustment - hour
+  // Adjust hour
   always @(posedge clk) begin
     if (setting && adj_field == 2'd0) begin
       if (adj_up) begin
@@ -55,7 +55,7 @@ module alarm (
     end
   end
 
-  // Alarm time adjustment - minute
+  // Adjust minute
   always @(posedge clk) begin
     if (setting && adj_field == 2'd1) begin
       if (adj_up) begin
@@ -83,12 +83,12 @@ module alarm (
     end
   end
 
-  // Alarm match detection + LED blink
+  // Alarm
   wire match = alarm_on &&
-               (cur_hour_tens == alarm_hour_tens) &&
-               (cur_hour_ones == alarm_hour_ones) &&
-               (cur_min_tens  == alarm_min_tens) &&
-               (cur_min_ones  == alarm_min_ones);
+    (cur_hour_tens == alarm_hour_tens) &&
+    (cur_hour_ones == alarm_hour_ones) &&
+    (cur_min_tens  == alarm_min_tens)  &&
+    (cur_min_ones  == alarm_min_ones);
 
   reg blink = 0;
   always @(posedge clk) begin
