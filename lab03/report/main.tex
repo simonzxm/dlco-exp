@@ -37,6 +37,33 @@
 \tableofcontents
 \newpage
 
+\section{七段数码管动态显示与闪烁逻辑}
+本系统复用了基础的数码管动态扫描显示架构，并根据多功能电子钟的交互需求，加入了软硬件结合的掩码闪烁屏蔽逻辑。
+
+\subsection{动态扫描机制}
+在顶层 \texttt{top} 模块中，首先通过 \texttt{case(mode)} 将当前所需显示的各项 BCD 计数值拼接构造成一个 32 位的整体数据 \texttt{display\_data}。该数据输入到 \texttt{display.v} 模块后，内部集成的高速脉冲计数器从 0 到 7 循环遍历各个数码管，并产生对应低电平有效的位选使能信号 \texttt{an\_raw}。
+同时，利用这产生出的 3 位控制地址，将对应的 4 位 BCD 数据段按需截取，并通过纯组合逻辑的译码模块 \texttt{bcd7seg.v} 实现数字向七段物理段码 \texttt{seg} 的转换输出。
+
+\subsection{防侵入式的闪烁掩盖（屏蔽掩码）设计}
+为了在调时（Mode 1）和调闹铃（Mode 2）模式下直观提示用户当前正在调整的时间字段，系统利用分频出了一个约为 3Hz 的方波脉冲信号 \texttt{blink}。当其处于高电平时，按照系统当前选中的时间片字段 (\texttt{adj\_field}) 产生相应的 8 位屏蔽掩码 \texttt{blink\_mask}：
+\begin{lstlisting}[language=Verilog]
+always @(*) begin
+    // blink_mask生成逻辑
+    if ((mode == 2'd1 || mode == 2'd2) && blink) begin
+        case (adj_field)
+            2'd0: blink_mask = 8'b11000000; // 屏蔽高两位（时）
+            2'd1: blink_mask = 8'b00110000; // 屏蔽中间两位（分）
+            2'd2: blink_mask = 8'b00001100; // 屏蔽低两位（秒）
+            default: blink_mask = 8'b00000000;
+        endcase
+    end else begin
+        blink_mask = 8'b00000000;
+    end
+end
+assign AN = an_raw | blink_mask;
+\end{lstlisting}
+如上所示，原生扫描阳极信号 \texttt{an\_raw} 与这层掩码 \texttt{blink\_mask} 进行了按位或 (\texttt{|}) 运算。当选中位要求熄灭闪烁时，其原本驱动低电平选通的管脚便会被强行置 1 以关闭显示。无需侵入修改并打乱底层 \texttt{display.v} 的代码流，便可实现当前时分秒的闪烁效果。
+
 \section{时钟使能模块设计（分频器）}
 本系统利用 \texttt{tick\_gen.v} 模块产生各个特定频率的时钟使能脉冲 \texttt{tick}，没有使用实验手册中的时钟分频模块。
 \begin{lstlisting}
@@ -85,4 +112,5 @@ wire btn_stable = delay1 & delay2;
 
 \subsection{全局多路复用}
 在 \texttt{top.v} 的设计中，通过一个通过 \texttt{mode} 切换的多路选择器 (MUX) 提取当前需要的按需输出的计数值，统一送给 \texttt{display.v} 模块进行数码管动态扫描显示。这种结构设计以及对 \texttt{button.v} 模块在不同按键上的复用调用，避免了大量的重复代码，不仅降低了芯片逻辑资源的占用，也大大简化了代码架构。
+
 \end{document}
