@@ -1,0 +1,120 @@
+\documentclass[12pt, a4paper]{ctexart}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+% Code snippet settings
+\lstset{
+    language=Verilog,
+    basicstyle=\ttfamily\small,
+    frame=single,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    breaklines=true
+}
+
+\begin{document}
+
+% 封面
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge\bfseries 实验报告\par}
+    \vspace{2cm}
+    {\Large 课程：数字逻辑与计算机组成\par}
+    \vspace{1cm}
+    {\Large 实验一：多路选择器与优先编码器\par}
+    \vspace{4cm}
+    {\large 姓名：\underline{\makebox[4cm]{郑袭明}}\par}
+    \vspace{1cm}
+    {\large 学号：\underline{\makebox[4cm]{251502027}}\par}
+    \vspace{1cm}
+    {\large 日期：\today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{实验目的}
+\begin{enumerate}
+    \item 掌握二位四选一选择器的设计与实现。
+    \item 掌握 8-3 优先编码器的设计与实现，并结合七段数码管进行结果译码与显示。
+    \item 熟悉 FPGA 开发板的拨码开关、LED 和七段数码管的硬件映射与控制。
+\end{enumerate}
+
+\section{实验一：二位四选一选择器}
+\subsection{设计思路}
+利用 \texttt{case} 语句实现 4 选 1 功能。模块包含四个 2 位数据输入 $X0, X1, X2, X3$ 和一个 2 位控制输入 $Y$，根据 $Y$ 的状态选择对应的数据变量输出至 $F$。
+
+\subsection{核心代码}
+\begin{lstlisting}
+module exp1 (
+    input [1:0] X0, X1, X2, X3, Y,
+    output reg [1:0] F
+);
+  always @(X0 or X1 or X2 or X3 or Y)
+    case (Y)
+      0: F = X0;
+      1: F = X1;
+      2: F = X2;
+      3: F = X3;
+      default: F = 2'b0;
+    endcase
+endmodule
+\end{lstlisting}
+
+\subsection{硬件映射}
+\begin{itemize}
+    \item \textbf{数据输入 ($X0 \sim X3$)}：拨动开关 \texttt{SW[9:2]}
+    \item \textbf{控制输入 ($Y$)}：拨动开关 \texttt{SW[1:0]}
+    \item \textbf{输出 ($F$)}：\texttt{LED[1:0]}
+\end{itemize}
+
+\section{实验二：8-3 优先编码器及数码管显示}
+\subsection{设计思路}
+实现带使能端（\texttt{en}）的 8-3 高位优先编码器。使用 \texttt{casez} 语句进行含有通配符的模式匹配，当使能有效时输出对应的高位优先编码值 \texttt{value} 及有效指示位 \texttt{valid}。随后利用自定义例化的 \texttt{bcd7seg} 模块将编码值翻译为七段数码管显示控制信号 \texttt{F}。如果输入全0或未使能，则控制显示全灭。
+
+\subsection{核心代码}
+\begin{lstlisting}
+module enhanced (
+    input [7:0] X, input en,
+    output reg valid,
+    output reg [3:0] value,
+    output [6:0] F
+);
+  always @(X or en) begin
+    if (en) begin
+      casez (X)
+        8'b1???????: begin value = 4'd7; valid = 1'b1; end
+        8'b01??????: begin value = 4'd6; valid = 1'b1; end
+        8'b001?????: begin value = 4'd5; valid = 1'b1; end
+        8'b0001????: begin value = 4'd4; valid = 1'b1; end
+        8'b00001???: begin value = 4'd3; valid = 1'b1; end
+        8'b000001??: begin value = 4'd2; valid = 1'b1; end
+        8'b0000001?: begin value = 4'd1; valid = 1'b1; end
+        8'b00000001: begin value = 4'd0; valid = 1'b1; end
+        default:     begin value = 4'd0; valid = 1'b0; end
+      endcase
+    end else begin
+      value = 4'd0; valid = 1'b0;
+    end
+  end
+
+  wire [6:0] F_temp;
+  bcd7seg display (.b(value), .h(F_temp));
+  assign F = (valid) ? F_temp : 7'b1111111;
+endmodule
+\end{lstlisting}
+
+\subsection{硬件映射}
+\begin{itemize}
+    \item \textbf{数据输入 ($X$)}：拨动开关 \texttt{SW[7:0]}
+    \item \textbf{使能输入 (\texttt{en})}：拨动开关 \texttt{SW[8]}
+    \item \textbf{有效指示 (\texttt{valid})}：\texttt{LED[4]}
+    \item \textbf{编码结果输出 (\texttt{value})}：\texttt{LED[3:0]}
+    \item \textbf{数码管显示控制}：段选采用译码输出 \texttt{SEG[6:0]}，位选赋固定值 \texttt{AN=8'b11111110} 仅启用最右侧的数码管显示。
+\end{itemize}
+
+\end{document}
