@@ -1,0 +1,263 @@
+\documentclass[12pt, a4paper]{ctexart}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+% Code snippet settings
+\lstset{
+    language=Verilog,
+    basicstyle=\ttfamily\small,
+    frame=single,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    breaklines=true,
+    numbers=left,
+    numberstyle=\tiny\color{gray}
+}
+
+\begin{document}
+
+% 封面
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge\bfseries 实验报告\par}
+    \vspace{2cm}
+    {\Large 课程：数字逻辑与计算机组成实验\par}
+    \vspace{1cm}
+    {\Large 实验五：移位寄存器及桶形移位器\par}
+    \vspace{4cm}
+    {\large 姓名：\underline{\makebox[4cm]{郑袭明}}\par}
+    \vspace{1cm}
+    {\large 学号：\underline{\makebox[4cm]{251502027}}\par}
+    \vspace{1cm}
+    {\large 日期：\today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{实验目的}
+
+\begin{enumerate}
+    \item 掌握移位寄存器的基本原理与多功能实现方法。
+    \item 理解桶形移位器的组合逻辑设计。
+    \item 了解线性反馈移位寄存器（LFSR）生成伪随机序列的原理。
+    \item 完成 LFSR 随机数发生器的上板验证。
+\end{enumerate}
+
+\section{实验内容}
+
+本实验包含三个核心模块的设计与一个上板验证项目：
+
+\begin{itemize}
+    \item 8 位多功能移位寄存器 \texttt{shiftreg}
+    \item 32 位桶形移位器 \texttt{barrel}
+    \item 线性反馈移位寄存器 \texttt{lfsr}（64 位仿真版与 8 位上板版）
+    \item 上板验证项目 \texttt{lfsr8}：在 Nexys A7-100T 上实现 8 位伪随机数发生器
+\end{itemize}
+
+\section{设计实现}
+
+\subsection{多功能移位寄存器 shiftreg}
+
+该模块为 8 位移位寄存器，通过 3 位 \texttt{func} 信号选择操作模式：
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ccl}
+\toprule
+\texttt{func} & 操作 & 说明 \\
+\midrule
+000 & 清零 & \texttt{dout <= 0} \\
+001 & 并行加载 & \texttt{dout <= din} \\
+010 & 逻辑右移 & 高位补 0 \\
+011 & 逻辑左移 & 低位补 0 \\
+100 & 算术右移 & 高位保持符号位 \\
+101 & 串行右移 & 高位移入 \texttt{lin} \\
+110 & 循环右移 & 最低位移至最高位 \\
+111 & 循环左移 & 最高位移至最低位 \\
+\bottomrule
+\end{tabular}
+\caption{shiftreg 功能表}
+\end{table}
+
+\begin{lstlisting}[caption={shiftreg.v}]
+module shiftreg (
+    input [7:0] din,
+    input clk,
+    input [2:0] func,
+    input lin,
+    output reg [7:0] dout
+);
+
+  always @(posedge clk) begin
+    case (func)
+      3'b000:  dout <= 8'd0;
+      3'b001:  dout <= din;
+      3'b010:  dout <= {1'b0, dout[7:1]};
+      3'b011:  dout <= {dout[6:0], 1'b0};
+      3'b100:  dout <= {dout[7], dout[7:1]};
+      3'b101:  dout <= {lin, dout[7:1]};
+      3'b110:  dout <= {dout[0], dout[7:1]};
+      3'b111:  dout <= {dout[6:0], dout[7]};
+      default: dout <= dout;
+    endcase
+  end
+
+endmodule
+\end{lstlisting}
+
+\subsection{桶形移位器 barrel}
+
+32 位组合逻辑桶形移位器，支持逻辑左移、逻辑右移和算术右移三种操作。通过 \texttt{lr} 和 \texttt{al} 两个控制信号选择模式：
+
+\begin{itemize}
+    \item \texttt{lr=1}：逻辑左移
+    \item \texttt{lr=0, al=0}：逻辑右移
+    \item \texttt{lr=0, al=1}：算术右移（使用 \texttt{\$signed} 和 \texttt{>>>} 运算符）
+\end{itemize}
+
+\begin{lstlisting}[caption={barrel.v}]
+module barrel (
+    input [31:0] indata,
+    input [4:0] shamt,
+    input lr,
+    input al,
+    output reg [31:0] outdata
+);
+
+  always @(*) begin
+    if (lr) outdata = indata << shamt;
+    else if (al) outdata = ($signed(indata)) >>> shamt;
+    else outdata = indata >> shamt;
+  end
+
+endmodule
+\end{lstlisting}
+
+\subsection{线性反馈移位寄存器 lfsr}
+
+LFSR 利用异或反馈产生伪随机序列。实验中实现了两个版本：
+
+\subsubsection{64 位仿真版本}
+
+反馈多项式为 $x_{64} = x_4 \oplus x_3 \oplus x_1 \oplus x_0$，可生成周期为 $2^{64}-1$ 的伪随机序列。
+
+\begin{lstlisting}[caption={lfsr.v（64 位）}]
+module lfsr (
+    input [63:0] seed,
+    input clk,
+    input load,
+    output reg [63:0] dout
+);
+
+  always @(posedge clk) begin
+    if (load) dout <= seed;
+    else dout <= {dout[4]^dout[3]^dout[1]^dout[0], dout[63:1]};
+  end
+
+endmodule
+\end{lstlisting}
+
+\subsubsection{8 位上板版本}
+
+反馈多项式为 $x_8 = x_4 \oplus x_3 \oplus x_2 \oplus x_0$，生成周期为 255 的伪随机序列。
+
+\begin{lstlisting}[caption={lfsr.v（8 位）}]
+module lfsr (
+    input [7:0] seed,
+    input clk,
+    input load,
+    output reg [7:0] dout
+);
+
+  always @(posedge clk) begin
+    if (load) dout <= seed;
+    else dout <= {dout[4]^dout[3]^dout[2]^dout[0], dout[7:1]};
+  end
+
+endmodule
+\end{lstlisting}
+
+\section{上板验证：LFSR 随机数发生器}
+
+\subsection{系统架构}
+
+上板项目 \texttt{lfsr8} 的顶层模块将 LFSR 与七段数码管显示模块连接：
+
+\begin{itemize}
+    \item \texttt{SW[7:0]}：设置种子值
+    \item \texttt{SW[8]}：load 信号，拨高时加载种子
+    \item \texttt{BTNC}：作为 LFSR 的时钟，每按一次产生下一个随机数
+    \item 数码管：以十六进制显示当前 8 位输出
+\end{itemize}
+
+\begin{lstlisting}[caption={top.v}]
+module top (
+    input CLK100MHZ,
+    input [8:0] SW,
+    input BTNC,
+    output [6:0] SEG,
+    output [7:0] AN
+);
+
+wire [7:0] dout;
+
+lfsr lfsr_inst (
+    .seed(SW[7:0]),
+    .clk(BTNC),
+    .load(SW[8]),
+    .dout(dout)
+);
+
+display display_inst (
+    .clk(CLK100MHZ),
+    .data({24'd0, dout}),
+    .an(AN),
+    .seg(SEG)
+);
+
+endmodule
+\end{lstlisting}
+
+\subsection{显示模块}
+
+\texttt{display} 模块采用动态扫描方式驱动 8 位七段数码管。利用 17 位计数器的高 3 位轮流选通各数码管，通过 \texttt{hex7seg} 译码模块将 4 位十六进制数转换为七段码。
+
+\subsection{验证步骤}
+
+\begin{enumerate}
+    \item 拨动 \texttt{SW[8]} 为高，设置 \texttt{SW[7:0]} 为初始种子（如 \texttt{8'h01}），按下 BTNC 加载种子。
+    \item 将 \texttt{SW[8]} 拨回低电平，每次按下 BTNC 产生下一个伪随机数。
+    \item 观察数码管显示的十六进制值，验证序列的伪随机性。
+    \item 以初始值 \texttt{00000001} 为例，预期前几个状态为：\texttt{01} $\rightarrow$ \texttt{80} $\rightarrow$ \texttt{40} $\rightarrow$ \texttt{20} $\rightarrow$ \texttt{10} $\rightarrow$ \texttt{88} $\ldots$
+\end{enumerate}
+
+\section{思考题}
+
+\textbf{如何生成更加复杂的伪随机序列？}
+
+\begin{enumerate}
+    \item \textbf{增加寄存器位宽}：使用更长的移位寄存器（如 64 位），序列周期呈指数增长。
+    \item \textbf{多级 LFSR 组合}：将多个不同特征多项式的 LFSR 输出进行异或或非线性组合。
+    \item \textbf{非线性反馈}：在反馈函数中引入与、或等非线性运算，打破线性可预测性。
+    \item \textbf{动态种子}：利用外部物理噪声源（如温度传感器）动态注入种子，增加不可预测性。
+\end{enumerate}
+
+\section{实验总结}
+
+本实验通过三个模块的设计，系统地掌握了移位操作的多种实现方式：
+\begin{itemize}
+    \item \texttt{shiftreg} 展示了时序逻辑下 8 种移位功能的统一实现。
+    \item \texttt{barrel} 展示了组合逻辑桶形移位器的简洁设计。
+    \item \texttt{lfsr} 展示了移位寄存器在伪随机数生成中的应用。
+\end{itemize}
+
+上板验证中，通过按钮手动触发时钟，直观观察了 LFSR 输出的伪随机特性，加深了对移位寄存器应用的理解。
+
+\end{document}
