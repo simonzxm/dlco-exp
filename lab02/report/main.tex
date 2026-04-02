@@ -4,12 +4,16 @@
 \usepackage{listings}
 \usepackage{graphicx}
 \usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning, fit}
 
 % Code snippet settings
 \lstset{
-    language=Verilog,
     basicstyle=\ttfamily\small,
     frame=single,
+    framesep=5pt,
+    xleftmargin=10pt,
+    xrightmargin=10pt,
     keywordstyle=\color{blue},
     commentstyle=\color{gray},
     breaklines=true
@@ -38,43 +42,96 @@
 \newpage
 
 \section{实验目的}
-本实验旨在设计并实现一个能够完成带符号补码数的加减法、取反、与、或、异或及比较大小等8种功能的4位 ALU，并在 FPGA 开发板上完成硬件验证与结果的数码管显示。
+本实验旨在设计并实现一个能够完成带符号补码数的加减法、取反、
+与、或、异或及比较大小等8种功能的4位 ALU，
+并在 FPGA 开发板上完成硬件验证与结果的数码管显示。
 
 \section{环境配置}
-本次实验的工程构建摒弃了传统的 Vivado GUI 繁重操作，采用了更为轻量高效的 \texttt{Makefile} 结合 \texttt{.tcl} 脚本的编译方式。开发者只需在终端通过执行标准的 \texttt{make} 指令，即可一键触发底层的 \texttt{.tcl} 脚本。该脚本自动涵盖了分析 Verilog 源文件、加载约束文件（\texttt{.xdc}）、逻辑综合生成网表、布局布线直至生成并烧录 Bitstream 文件的全流程。这种自动化脚本当大地加速了 FPGA 的上板调试与开发迭代效率。
+本次及以后实验没有使用课上常用的 Vivado GUI 进行操作，
+而是使用了 \texttt{Makefile} 结合 \texttt{.tcl} 脚本的编译方式，
+可以使用 \texttt{make} 一键完成编译和烧录等操作。
 
-\section{实验原理与设计}
-实验的核心部分通过 \texttt{alu\_s} 模块实现，该模块利用 3 位控制信号 \texttt{ALUctr} 控制输出。进行加减法时，同步计算零标志位（\texttt{zero}）、溢出标志位（\texttt{of}）和进位标志位（\texttt{cf}）。其中，\texttt{cf} 标志在加法时表示最高位产生的进位（Carry Out）；在减法时，它则表示被减数小于减数时产生的借位（Borrow Out）。同时，在实现比较大小时，调用了 Verilog 的内置系统函数 \texttt{\$signed()} 对操作数进行强制类型转换，确保底层比较逻辑按照带符号补码的标准执行，避免了默认无符号比较带来的逻辑漏洞。
+\begin{lstlisting}[language=make]
+VIVADO = vivado -mode batch -source
+TCL_SCRIPT = run.tcl
+BITSTREAM = ./build/top.bit
 
-在顶层模块 \texttt{top} 中，使用开发板上的拨码开关作为操作数A、 B的输入与控制信号，ALU的计算结果经拆分后传至 \texttt{display} 和 \texttt{bcd7seg} 模块，驱动七段数码管动态显示。状态标志位则由 LED 输出。
+all: $(BITSTREAM)
 
-\section{核心代码展示}
-核心功能基于多路选择器 \texttt{case} 语法实现：
-\begin{lstlisting}[language=Verilog]
-always @(*) begin
-    F = 4'd0; cf = 1'b0; of = 1'b0; zero = 1'b0;
-    case (ALUctr)
-        3'b000: begin
-            {cf, F} = A + B;
-            of = (A[3] == B[3]) && (F[3] != A[3]);
-            zero = ~(|F);
-        end
-        3'b001: begin
-            {cf, F} = A - B;
-            of = (A[3] != B[3]) && (F[3] != A[3]);
-            zero = ~(|F);
-        end
-        3'b010: F = ~A;
-        3'b011: F = A & B;
-        3'b100: F = A | B;
-        3'b101: F = A ^ B;
-        3'b110: F = $signed(A) < $signed(B);
-        3'b111: F = (A == B);
-    endcase
-end
+$(BITSTREAM): ./*.v ./*.xdc $(TCL_SCRIPT)
+    mkdir -p build
+    $(VIVADO) $(TCL_SCRIPT)
+
+prog: $(BITSTREAM)
+    $(VIVADO) download.tcl
+
+clean:
+    rm -rf build/ .Xil/ *.log *.jou *.html *.xml 
+
+.PHONY: all prog clean
 \end{lstlisting}
 
-\section{实验总结}
-本实验成功实现了一个支持复杂逻辑与算术运算的4位补码 ALU。经数码管及 LED 验证，计算结果及进位、溢出表示准确无误。本次实验加深了对补码运算特性及 FPGA 硬件模块化设计的理解。
+\section{实验原理与设计}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        \node (alu) [draw] {\texttt{alu\_s}};
+        \node (bcd) [draw, right=of alu] {\texttt{bcd7seg}};
+        \node (disp) [draw, right=of bcd] {\texttt{display}};
+        \node (seg) [draw, dashed, fit=(bcd) (disp)] {};
+        \node (in) [left=of alu] {Input};
+        \node (clk) [above=of disp] {\texttt{CLK100MHZ}};
+        \node (out) [right=of disp] {7-Seg};
+        \node (pm) [below=of alu] {CF, OF, Zero};
+        \draw [->, thick] (in) -- (alu);
+        \draw [->, thick] (alu) -- (bcd);
+        \draw [->, thick] (bcd) -- (disp);
+        \draw [->, thick] (clk) -- (disp);
+        \draw [->, thick] (alu) -- (pm);
+        \draw [->, thick] (disp) -- (out);
+    \end{tikzpicture}
+    \caption{系统整体结构图}
+    \label{fig:sys}
+\end{figure}
+
+实验主要由两个模块组成，分别是 ALU 模块和数码管显示模块。
+
+\begin{itemize}
+    \item ALU 模块：减法的进位使用 ARM 的标准，与 x86 的标准相反。
+    \item 数码管显示：轮流显示八个数码管的当前值，
+    截取 17 位时钟计数器的最高三位作为当前显示的数码管的索引。
+    \begin{lstlisting}[language=Verilog]
+reg [16:0] counter;
+reg [ 2:0] current;
+
+always @(posedge clk) begin
+    counter <= counter + 1;
+    current <= counter[16:14];
+end
+
+always @(*) begin
+    an = 8'b11111111;
+    an[current] = 1'b0;
+end
+    \end{lstlisting}
+\end{itemize}
+
+\section{实验总结与反思}
+
+Vivado GUI 模式下创建的工程包含大量杂乱的文件，
+并且难以传输、难以管理、难以进行 Git 版本控制，
+所以我使用了基于 \texttt{Makefile} 结合 \texttt{.tcl} 脚本的编译方式，
+使用其他编辑器进行开发，相比直接使用 Vivado GUI 体验大大提升，
+且可以满足我的现实条件（Vivado 仅安装在寝室的台式机上，
+日常开发使用 MacBook）。唯一的缺点是，没有办法直接在编辑器中进行仿真和调试，
+需要切换到 Vivado GUI 才行。
+
+我感觉 Verilog 的语法很丰富，比如使用 \texttt{\$signed(A)}
+对 \texttt{A} 进行有符号数处理，这比直接用位运算比较更为方便。
+最开始我还是很不熟悉的，比如我不太理解 \texttt{assign} 和在
+\texttt{always @(*)} 块里面赋值的区别；现在对 Verilog
+这个语言和其内在的逻辑有了进一步的了解，但应该还是不太够，
+我还需要更近一步的学习，尤其是后续时序逻辑方面的内容。
 
 \end{document}
