@@ -5,7 +5,10 @@ module keyboard (
     input ps2_data,
     output reg [7:0] key_count,
     output reg [7:0] cur_key,
-    output [7:0] ascii_key
+    output [7:0] ascii_key,
+    output reg left_shift,
+    output reg left_ctrl,
+    output reg left_alt
 );
 
   wire [7:0] keydata;
@@ -41,6 +44,9 @@ module keyboard (
       is_break <= 0;
       read <= 0;
       pressed <= 0;
+      left_shift <= 0;
+      left_ctrl <= 0;
+      left_alt <= 0;
     end else begin
       if (read) begin
         nextdata_n <= 1;
@@ -50,15 +56,24 @@ module keyboard (
         read <= 1;
         if (keydata == 8'hF0) begin
           is_break <= 1;
-          pressed  <= 0;
         end else if (is_break) begin
           is_break <= 0;
-          cur_key  <= 0;
-          pressed  <= 0;
-        end else if (!pressed) begin
-          cur_key   <= keydata;
-          key_count <= key_count + 1;
-          pressed   <= 1;
+          if (keydata == 8'h12) left_shift <= 0;
+          else if (keydata == 8'h14) left_ctrl <= 0;
+          else if (keydata == 8'h11) left_alt <= 0;
+          else if (keydata == cur_key) begin
+            cur_key  <= 0;
+            pressed  <= 0;
+          end
+        end else begin
+          if (keydata == 8'h12) left_shift <= 1;
+          else if (keydata == 8'h14) left_ctrl <= 1;
+          else if (keydata == 8'h11) left_alt <= 1;
+          else if (!pressed) begin
+            cur_key   <= keydata;
+            key_count <= key_count + 1;
+            pressed   <= 1;
+          end
         end
       end
     end
