@@ -1,5 +1,6 @@
 module top (
     input CLK100MHZ,
+    input CPU_RESETN,
     input PS2_CLK,
     input PS2_DATA,
     output [6:0] SEG,
@@ -12,6 +13,7 @@ module top (
 
     keyboard key_inst (
         .clk(CLK100MHZ),
+        .clrn(CPU_RESETN),
         .ps2_clk(PS2_CLK),
         .ps2_data(PS2_DATA),
         .key_count(key_count),
