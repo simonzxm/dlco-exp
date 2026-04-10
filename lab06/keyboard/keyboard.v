@@ -62,8 +62,8 @@ module keyboard (
           else if (keydata == 8'h14) left_ctrl <= 0;
           else if (keydata == 8'h11) left_alt <= 0;
           else if (keydata == cur_key) begin
-            cur_key  <= 0;
-            pressed  <= 0;
+            cur_key <= 0;
+            pressed <= 0;
           end
         end else begin
           if (keydata == 8'h12) left_shift <= 1;
@@ -80,3 +80,4 @@ module keyboard (
   end
 
 endmodule
+

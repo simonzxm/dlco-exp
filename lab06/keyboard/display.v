@@ -34,7 +34,7 @@ module display (
   hex7seg decoder (
       .hex(hex),
       .seg(seg),
-      .en(en[current])
+      .en (en[current])
   );
 
 endmodule

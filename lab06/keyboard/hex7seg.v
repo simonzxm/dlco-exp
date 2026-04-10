@@ -25,6 +25,6 @@ module hex7seg (
         4'hF:    seg = 7'b0001110;
         default: seg = 7'b1111111;
       endcase
-    end else     seg = 7'b1111111;
+    end else seg = 7'b1111111;
   end
 endmodule
