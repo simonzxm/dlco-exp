@@ -19,11 +19,15 @@ module keyboard (
   reg read;
   reg pressed;
 
+  wire [7:0] raw_ascii;
+
   scancode_ram myram (
       .clk(clk),
       .addr(cur_key),
-      .outdata(ascii_key)
+      .outdata(raw_ascii)
   );
+
+  assign ascii_key = (left_shift && raw_ascii >= 8'h61 && raw_ascii <= 8'h7A) ? (raw_ascii - 8'h20) : raw_ascii;
 
   ps2_keyboard mykey (
       .clk(clk),
