@@ -10,7 +10,7 @@ module hamming (
   assign parity[2] = code[3] ^ code[4] ^ code[5] ^ code[6];
 
   always @(*) begin
-    if (parity) correct = code ^ (7'd1 << (parity - 1'd1));
+    if (parity) correct = code ^ (7'd1 << (parity - 3'd1));
     else correct = code;
   end
 
