@@ -7,9 +7,11 @@
 
 % Code snippet settings
 \lstset{
-    language=Verilog,
     basicstyle=\ttfamily\small,
     frame=single,
+    framesep=5pt,
+    xleftmargin=10pt,
+    xrightmargin=10pt,
     keywordstyle=\color{blue},
     commentstyle=\color{gray},
     breaklines=true
@@ -39,148 +41,93 @@
 
 \section{寄存器堆设计}
 
-本实验中的寄存器堆为 16$\times$8 位结构，采用 \textbf{异步读、同步写} 的设计方式。读取时通过组合逻辑直接输出，写入则在时钟上升沿完成。
+实验所用的寄存器堆支持异步读和同步写，具体来说：
 
-\begin{lstlisting}
-module regfile (
-    input        clk,
-    input        we,
-    input  [3:0] addr,
-    input  [7:0] wdata,
-    output [7:0] rdata
-);
-  reg [7:0] ram [0:15];
-
-  initial begin
-    $readmemh("mem1.txt", ram, 0, 15);
-  end
-
-  assign rdata = ram[addr];           // 异步读
-
-  always @(posedge clk) begin
-    if (we) ram[addr] <= wdata;       // 同步写
-  end
-endmodule
-\end{lstlisting}
-
-初始化文件 \texttt{mem1.txt} 使用 \texttt{@地址 数据} 格式，将地址 0--15 分别初始化为 \texttt{0x00}--\texttt{0x0F}。
-
-异步读的关键在于 \texttt{assign} 语句：地址信号一旦改变，输出立即通过组合逻辑更新，\textbf{无需时钟沿}。综合后，Vivado 会将这种结构映射为分布式 RAM（Distributed RAM），使用 FPGA 的 LUT 资源实现。
+\begin{itemize}
+    \item \textbf{异步读}：读取直接通过 \texttt{assign} 语句实现，无需时钟沿信号
+    \item \textbf{同步写}：写入操作在时钟上升沿触发，使用 \texttt{always @(posedge clk)} 块实现
+\end{itemize}
 
 \section{RAM 设计（IP 核）}
 
 RAM 部分利用 Vivado 的 Block Memory Generator IP 核生成一个 16$\times$8 的单口存储器。由于本项目不使用 Vivado GUI，IP 核通过 Tcl 脚本自动创建：
 
 \begin{lstlisting}[language=Tcl]
-create_ip -name blk_mem_gen -vendor xilinx.com \
-    -library ip -version 8.4 \
+# Create in-memory project and generate IP
+create_project -in_memory -part $PART
+create_ip -name blk_mem_gen -vendor xilinx.com -library ip -version 8.4 \
     -module_name blk_mem_gen_0 -dir $IP_DIR
-
 set_property -dict [list \
     CONFIG.Memory_Type {Single_Port_RAM} \
     CONFIG.Write_Width_A {8} \
     CONFIG.Write_Depth_A {16} \
+    CONFIG.Read_Width_A {8} \
+    CONFIG.Enable_A {Always_Enabled} \
+    CONFIG.Write_Width_B {8} \
+    CONFIG.Read_Width_B {8} \
     CONFIG.Register_PortA_Output_of_Memory_Primitives {false} \
     CONFIG.Load_Init_File {true} \
     CONFIG.Coe_File [file normalize ./ram_init.coe] \
 ] [get_ips blk_mem_gen_0]
+generate_target all [get_ips blk_mem_gen_0]
+synth_ip [get_ips blk_mem_gen_0]
 \end{lstlisting}
 
 初始化使用 \texttt{.coe} 文件，将 16 个单元分别初始化为 \texttt{0xF0}--\texttt{0xFF}。
 
-与寄存器堆不同，IP 核生成的 RAM 为 \textbf{同步读写}：读取数据需要一个时钟上升沿才能输出到 \texttt{douta} 端口。综合后，Vivado 将其映射为 Block RAM（BRAM），使用 FPGA 内嵌的 RAMB18E1 硬件原语实现。
+与寄存器堆不同，IP 核生成的 RAM 的读写都是同步的，在时钟上升沿完成数据更新。
 
-\section{顶层模块与 I/O 设计}
+\section{顶层模块设计}
 
-顶层模块将寄存器堆和 RAM 共用同一组地址开关和时钟按钮，通过一个选择开关区分写入目标：
-
-\begin{lstlisting}
-  // SW[13] 为写使能，SW[12] 为选择开关
-  wire reg_we = SW[13] & ~SW[12];
-  wire ram_we = SW[13] &  SW[12];
-
-  wire [7:0] reg_rdata;
-  regfile regfile_inst (
-      .clk  (BTNC),
-      .we   (reg_we),
-      .addr (SW[3:0]),  // SW[ 3:0] 为地址信号
-      .wdata(SW[11:4]), // SW[11:4] 为写入数据
-      .rdata(reg_rdata)
-  );
-
-  wire [7:0] ram_rdata;
-  blk_mem_gen_0 ram_inst (
-      .clka (BTNC),
-      .wea  (ram_we),
-      .addra(SW[3:0]),  // SW[ 3:0] 为地址信号
-      .dina (SW[11:4]), // SW[11:4] 为写入数据
-      .douta(ram_rdata)
-  );
-\end{lstlisting}
+顶层模块将寄存器堆和 RAM 共用同一组地址开关和时钟按钮，通过一个选择开关区分写入目标。
 
 开发板按钮 \texttt{BTNC} 直接作为两个存储器的时钟信号，每按一次产生一个时钟周期。由于 \texttt{BTNC} 并非专用时钟引脚，XDC 中需设置：
 \begin{lstlisting}[language=Tcl]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets BTNC_IBUF]
 \end{lstlisting}
 
-数码管显示方面，使用一个统一的 8 位动态扫描驱动 \texttt{display}，右侧 4 位（AN[3:0]）显示寄存器堆读出值，左侧 4 位（AN[7:4]）显示 RAM 读出值。译码器 \texttt{hex7seg} 支持 0--F 的十六进制显示。
+\section{实验结果与分析}
 
-\section{实验观察与分析}
+我们通过 Vivado 的 Report Utilization 工具分析了综合后的资源利用情况，使用以下命令生成报告：
 
-\subsection{读取时钟周期差异}
+\begin{lstlisting}[language=Tcl]
+report_utilization -file $BUILD_DIR/reports/utilization.txt
+report_utilization -hierarchical -file $BUILD_DIR/reports/utilization_hierarchical.txt
+\end{lstlisting}
+
+\subsection{读写时钟周期差异}
 
 \begin{itemize}
-    \item \textbf{寄存器堆}：改变地址开关后，右侧数码管\textbf{立即}更新显示。读取需要 \textbf{0 个时钟周期}（异步读，纯组合逻辑）。
-    \item \textbf{RAM（IP 核）}：改变地址开关后，左侧数码管\textbf{不变}，必须按一次 BTNC 才能读出新数据。读取需要 \textbf{1 个时钟周期}（同步读）。
+    \item \textbf{寄存器堆}：写入需要一个使用周期，读取需要零个时钟周期。
+    \item \textbf{RAM（IP 核）}：读取和写入都需要一个时钟周期。
 \end{itemize}
 
 \subsection{综合后的实现方式}
 
-通过 Vivado 的 Primitives 报告，可以直接观察到两个存储器使用了不同的硬件原语：
+在 Utilization by Hierarchy 表中，我们发现：
 
-\begin{center}
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{存储器} & \textbf{使用的原语} & \textbf{实现方式} \\
-\hline
-寄存器堆 (\texttt{regfile\_inst}) & RAMS32 $\times$ 8 & Distributed RAM（LUT） \\
-\hline
-RAM (\texttt{ram\_inst}) & RAMB18E1 $\times$ 1 & Block RAM \\
-\hline
-\end{tabular}
-\end{center}
-
-\textbf{寄存器堆}使用了 8 个 \texttt{RAMS32}（Single-port Distributed RAM 原语），属于 Distributed Memory 类别。这是因为 Verilog 代码中使用了 \texttt{assign} 实现异步读取，这种组合逻辑行为只能用 LUT 来实现，Vivado 自动将其综合为分布式 RAM。8 个 \texttt{RAMS32} 各提供 32$\times$1 的存储，组合起来实现 16$\times$8 的地址空间（每个 RAMS32 负责 1 位输出数据）。
-
-\textbf{RAM（IP 核）}使用了 1 个 \texttt{RAMB18E1}，属于 Block Memory 类别。Block RAM 是 FPGA 芯片内嵌的专用存储硬件，天然支持同步读写操作。16$\times$8 仅需要 128 bit 的存储，远小于一个 RAMB18E1 提供的 18Kbit 容量，因此只使用了 1 个。
-
-\subsection{资源消耗}
-
-根据 Vivado 的 Report Utilization，各模块的资源占用如下：
-
-\begin{center}
-\begin{tabular}{|l|c|c|c|c|c|}
-\hline
-\textbf{模块实例} & \textbf{Total LUTs} & \textbf{LUTRAMs} & \textbf{FFs} & \textbf{RAMB18} \\
-\hline
-\texttt{top}（整体） & 27 & 8 & 17 & 1 \\
-\hline
-\texttt{regfile\_inst} & 13 & 8 & 0 & 0 \\
-\hline
-\texttt{ram\_inst} & 0 & 0 & 0 & 1 \\
-\hline
-\texttt{display\_inst} & 13 & 0 & 17 & 0 \\
-\hline
-\end{tabular}
-\end{center}
-
-从表中可以清晰看到：
 \begin{itemize}
-    \item IP 核生成的 RAM 使用了 \textbf{1 个 RAMB18}（占 Block RAM Tile 的 0.5 个，利用率 0.37\%），\textbf{不消耗任何 LUT 资源}。
-    \item 寄存器堆使用了 \textbf{4 个 LUTRAM + 1 个逻辑 LUT}，\textbf{不消耗任何 Block RAM}，也不使用触发器（FF = 0），因为异步读不需要寄存器来锁存输出。
-    \item 数码管显示模块消耗了最多的逻辑资源（13 个 LUT 和 17 个 FF），主要用于动态扫描计数器和多路选择逻辑。
+    \item \textbf{寄存器堆} (\texttt{regfile\_inst}) 使用了 8 个 LUTRAMs，实现方式为分布式 RAM。
+    \item \textbf{RAM（IP 核）} (\texttt{ram\_inst}) 使用了 1 个 RAMB18，说明它被实现为 Block RAM。
 \end{itemize}
 
-这体现了两种存储实现的本质区别：分布式 RAM 灵活、支持异步读取，但消耗通用 LUT 资源；Block RAM 高效、容量大，但只能同步访问。
+\subsection{资源消耗统计}
+
+根据 Utilization by Hierarchy 表，我们可以看出，\textbf{寄存器堆} (\texttt{regfile\_inst}) 使用了 8 个 LUTRAMs 和 5 个 Logic LUTs，没有使用任何专用的 Block RAM 和 FF。
+
+而 \textbf{RAM（IP 核）} (\texttt{ram\_inst}) 使用了 1 个 RAMB18，也就是 0.5 个 Block RAM Tile (根据 Memory 表)，没有使用任何查找表和 FF。
+
+\section{实验总结与反思}
+
+由于我的笔记本用不了 Vivado，平时一般是 SSH 到寝室的 Linux 电脑上使用的，所以使用 Vivado GUI 的体验不要好。
+在非 GUI 环境下创建 IP 核是非常麻烦的，这部分我做了很久才搞定，也借助了一些外界的帮助。
+
+不过后面的综合分析部分，我感觉在非 GUI 环境下还是很方便的，生成的报告文件很适合阅读。
+
+对于寄存器堆和 RAM 的实现方式，说实话我之前并没有搞的太懂，现在看了分析报告我才知道其中具体的原理。
+之前我只对寄存器和 RAM 有一个初步的认识，听说过寄存器比 RAM 快，但不知道为什么。
+感觉还是现在上手自己实现了一个，才真正理解了其中的区别。
+
+做这个实验已经是一个月前的事情了，现在回过头来写报告，感觉自己像是又把整个实验重新做了一遍。
 
 \end{document}
