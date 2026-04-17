@@ -21,7 +21,7 @@ module top (
   wire [11:0] vga_data;
   wire [18:0] rom_addr;
 
-  assign rom_addr = h_addr + v_addr * 10'd640;
+  assign rom_addr = h_addr * 10'd480 + v_addr;
 
   image_rom image_rom_inst (
       .clka (clk_25mhz),
@@ -31,7 +31,7 @@ module top (
 
   vga_ctrl vga_ctrl_inst (
       .pclk(clk_25mhz),
-      .reset(CPU_RESETN),
+      .reset(~CPU_RESETN),
       .vga_data(vga_data),
       .h_addr(h_addr),
       .v_addr(v_addr),
