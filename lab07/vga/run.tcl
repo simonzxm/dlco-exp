@@ -12,7 +12,7 @@ create_ip -name blk_mem_gen -vendor xilinx.com -library ip -version 8.4 \
 set_property -dict [list \
     CONFIG.Memory_Type {Single_Port_ROM} \
     CONFIG.Write_Width_A {12} \
-    CONFIG.Write_Depth_A {307200} \
+    CONFIG.Write_Depth_A {327680} \
     CONFIG.Read_Width_A {12} \
     CONFIG.Enable_A {Always_Enabled} \
     CONFIG.Register_PortA_Output_of_Memory_Primitives {false} \
