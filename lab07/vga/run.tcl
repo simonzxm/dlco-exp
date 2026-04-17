@@ -1,5 +1,9 @@
 set PART xc7a100tcsg324-1
 set BUILD_DIR ./build
+set IP_DIR ./build/ip
+
+file mkdir $BUILD_DIR
+file mkdir $IP_DIR
 
 # Create in-memory project and generate IP
 create_project -in_memory -part $PART
