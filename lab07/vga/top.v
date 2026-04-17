@@ -21,7 +21,7 @@ module top (
   wire [11:0] vga_data;
   wire [18:0] rom_addr;
 
-  assign rom_addr = h_addr + v_addr * 10'd640;
+  assign rom_addr = {h_addr, v_addr[8:0]};
 
   image_rom image_rom_inst (
       .clka (clk_25mhz),
