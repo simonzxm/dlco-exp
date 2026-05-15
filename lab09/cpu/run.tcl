@@ -37,7 +37,7 @@ set_property -dict [list \
     CONFIG.Enable_A {Always_Enabled} \
     CONFIG.Register_PortA_Output_of_Memory_Primitives {false} \
     CONFIG.Load_Init_File {true} \
-    CONFIG.Coe_File {[file normalize ./fib.coe]} \
+    CONFIG.Coe_File [file normalize ./fib.coe] \
 ] [get_ips blk_mem_gen_1]
 generate_target all [get_ips blk_mem_gen_1]
 synth_ip [get_ips blk_mem_gen_1]
