@@ -1,0 +1,24 @@
++--------------------------+--------------------------+----------------------------------------------------------------------------------------------------------+
+|       Launch Clock       |      Capture Clock       |                                                 Pin                                                      |
++--------------------------+--------------------------+----------------------------------------------------------------------------------------------------------+
+|              sys_clk_pin |              sys_clk_pin |                                                                                           cpu/PC_reg[0]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[28][26]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[24][26]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[16][15]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[30][29]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[24][14]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[28][25]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[29][15]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[28][29]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[29][29]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                        cpu/regfile_inst/regs_reg[16][8]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[29][13]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[28][13]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[29][26]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[16][14]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                        cpu/regfile_inst/regs_reg[28][8]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[28][18]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[29][23]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                       cpu/regfile_inst/regs_reg[29][17]/D|
+|              sys_clk_pin |              sys_clk_pin |                                                                        cpu/regfile_inst/regs_reg[16][7]/D|
++--------------------------+--------------------------+----------------------------------------------------------------------------------------------------------+
