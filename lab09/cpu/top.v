@@ -16,7 +16,7 @@ module top (
   wire [31:0] dbgdata;
 
   reg halted;
-  always @(posedge CLK100MHZ or posedge reset) begin
+  always @(posedge CLK100MHZ) begin
     if (reset) halted <= 0;
     else if (!halted && imemdataout == 32'hdead10cc) halted <= 1;
   end
@@ -27,7 +27,7 @@ module top (
       .clock(CLK100MHZ),
       .reset(reset),
       .imemaddr(imemaddr),
-      .imemdataout(halted ? 32'h00000013 : (imemaddr == 32'b0) ? addi_sw : imemdataout),
+      .imemdataout(halted ? 32'h00000013 : (imemdataout == 32'h00A00513) ? addi_sw : imemdataout),
       .imemclk(imemclk),
       .dmemaddr(dmemaddr),
       .dmemdataout(dmemdataout),
