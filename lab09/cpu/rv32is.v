@@ -259,5 +259,6 @@ module rv32is (
   assign dmemdatain = rd2;
   assign dmemwe = MemWr;
   assign dmemop = MemOP;
+  assign dbgdata = regfile_inst.regs[10];
 
 endmodule
