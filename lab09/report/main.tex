@@ -1,0 +1,182 @@
+\documentclass[12pt, a4paper]{ctexart}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
+
+% Code snippet settings
+\lstset{
+    basicstyle=\ttfamily\small,
+    frame=single,
+    framesep=5pt,
+    xleftmargin=10pt,
+    xrightmargin=10pt,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    breaklines=true
+}
+
+\begin{document}
+
+% 封面
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge\bfseries 实验报告\par}
+    \vspace{2cm}
+    {\Large 课程：数字逻辑与计算机组成实验\par}
+    \vspace{1cm}
+    {\Large 实验九：单周期 CPU\par}
+    \vspace{4cm}
+    {\large 姓名：\underline{\makebox[4cm]{郑袭明}}\par}
+    \vspace{1cm}
+    {\large 学号：\underline{\makebox[4cm]{251502027}}\par}
+    \vspace{1cm}
+    {\large 日期：\today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{设计思路}
+
+\subsection{整体架构}
+
+本实验设计并实现了一个基于 RISC-V RV32I 指令集的单周期 CPU。该 CPU 能够在一个时钟周期内完成一条指令的取指
+（Instruction Fetch）、译码（Decode）、执行（Execute）、访存（Memory Access）和写回（Write Back）。
+
+单周期 CPU 与指令存储器、数据存储器以及外部输入输出设备的连接关系如图 \ref{fig:cpu_system} 所示：
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[>=Stealth, node distance=2cm,
+        every node/.style={draw, minimum width=2.5cm, minimum height=1.2cm, align=center}]
+        \node (cpu) {单周期 CPU \\ \texttt{rv32is}};
+        \node[left=2.5cm of cpu] (imem) {指令存储器 \\ \texttt{imem}};
+        \node[right=2.5cm of cpu] (dmem) {数据存储器 \\ \texttt{dmem}};
+        \node[below=1.8cm of cpu] (disp) {七段数码管显示 \\ \texttt{display}};
+        
+        % CPU <-> IMEM
+        \draw[->] ([yshift=0.3cm]cpu.west) -- node[above, font=\footnotesize, draw=none, minimum height=0pt] {\texttt{imemaddr}} ([yshift=0.3cm]imem.east);
+        \draw[<-] ([yshift=-0.3cm]cpu.west) -- node[below, font=\footnotesize, draw=none, minimum height=0pt] {\texttt{imemdataout}} ([yshift=-0.3cm]imem.east);
+        
+        % CPU <-> DMEM
+        \draw[->] ([yshift=0.4cm]cpu.east) -- node[above, font=\footnotesize, draw=none, minimum height=0pt] {\texttt{dmemaddr}} ([yshift=0.4cm]dmem.west);
+        \draw[->] ([yshift=0cm]cpu.east) -- node[fill=white, inner sep=1pt, font=\footnotesize, draw=none, minimum height=0pt] {\texttt{dmemdatain}} ([yshift=0cm]dmem.west);
+        \draw[<-] ([yshift=-0.4cm]cpu.east) -- node[below, font=\footnotesize, draw=none, minimum height=0pt] {\texttt{dmemdataout}} ([yshift=-0.4cm]dmem.west);
+        
+        % CPU -> Display
+        \draw[->] (cpu.south) -- node[right, font=\footnotesize, draw=none, minimum height=0pt] {\texttt{dbgdata (x10)}} (disp.north);
+    \end{tikzpicture}
+    \caption{单周期 CPU 系统整体架构图}
+    \label{fig:cpu_system}
+\end{figure}
+
+在该设计中：
+\begin{enumerate}
+    \item \textbf{取指阶段}：根据当前 PC 值从指令存储器（ROM）中读取 32 位机器指令。
+    \item \textbf{译码阶段}：控制器分析指令的 Opcode、funct3 和 funct7，生成寄存器写使能、内存写使能、操作数选择信号、ALU 操作控制码等控制信号。
+    \item \textbf{执行阶段}：通用寄存器堆（Regfile）读出操作数，经多路选择器送入 ALU。ALU 完成算术逻辑运算、分支条件判断或访存地址计算。
+    \item \textbf{访存阶段}：若为访存指令，则根据 ALU 计算出的地址对数据存储器（RAM）进行读或写。
+    \item \textbf{写回阶段}：将 ALU 计算结果或从内存读出的数据写入通用寄存器堆的目标寄存器。
+    同时，PC 控制逻辑根据当前指令类型及分支判断信号决定下一周期 PC 的值。
+\end{enumerate}
+
+\subsection{算术逻辑单元 (ALU) 控制设计}
+
+根据 \texttt{alu.v} 的实现，本实验中的 ALU 通过 4 位控制信号 \texttt{ALUctr} 支持
+加法、减法、逻辑移位、算术右移、按位与/或/异或以及比较等多种运算。其设计核心包括：
+
+\begin{itemize}
+    \item \textbf{分支决策信号}：
+    \begin{itemize}
+        \item \texttt{less} 信号：在有符号/无符号比较时，根据控制信号最高位 \texttt{ALUctr[3]}
+        选择有符号比较 \texttt{\$signed(dataa) < \$signed(datab)} 或无符号比较 \texttt{dataa < datab}。
+        \item \texttt{zero} 信号：在控制信号低三位为 \texttt{3'b010} 时（对应比较/分支操作），
+        \texttt{zero} 信号表示两数是否相等（即 \texttt{dataa == datab}），这为分支跳转指令
+        （如 \texttt{beq} / \texttt{bne}）提供了直接的判断标志；而在其他普通运算下，
+        \texttt{zero} 信号表示运算结果 \texttt{aluresult} 是否为 0。
+    \end{itemize}
+    \item \textbf{移位位数的处理}：移位操作数取 \texttt{datab[4:0]}，实现了符合 RISC-V 规范的截断移位。
+\end{itemize}
+
+\subsection{斐波那契程序机器码与执行流分析}
+
+程序 \texttt{fib.coe} 实现了一个用于计算斐波那契数列第 $n$ 项（以 $n=10$ 为默认输入）的循环程序。
+每一行机器码对应的反汇编指令及其功能如表 \ref{tab:fib_instructions} 所示。
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Fibonacci 程序的机器码与反汇编指令}
+    \label{tab:fib_instructions}
+    \begin{tabular}{cclp{6.0cm}}
+        \toprule
+        地址 (PC) & 机器码 (Hex) & 汇编指令 & 功能说明 \\
+        \midrule
+        \texttt{0x00} & \texttt{00A00513} & \texttt{addi x10, x0, 10} & 默认设置输入 $n=10$ 到寄存器 \texttt{x10}，在板级验证中由顶层模块改写为读取拨码开关 \texttt{SW} 的值 \\
+        \texttt{0x04} & \texttt{008000EF} & \texttt{jal x1, 12} & 调用计算函数，跳转至 \texttt{0x0C}，并将返回地址 \texttt{0x08} 存入 \texttt{x1} \\
+        \texttt{0x08} & \texttt{DEAD10CC} & \texttt{dead10cc} & 停机特征码。顶层模块检测到该指令后使 CPU 挂起，持续供给 NOP 指令，锁定显示 \\
+        \texttt{0x0C} & \texttt{02050E63} & \texttt{beq x10, x0, 72} & 若 $n == 0$（\texttt{x10 == 0}），分支跳转至 \texttt{0x48} 直接返回 \\
+        \texttt{0x10} & \texttt{00100793} & \texttt{addi x15, x0, 1} & 设置辅助寄存器 \texttt{x15} 值为 1 \\
+        \texttt{0x14} & \texttt{02F50A63} & \texttt{beq x10, x15, 72} & 若 $n == 1$（\texttt{x10 == 1}），分支跳转至 \texttt{0x48} 直接返回 \\
+        \texttt{0x18} & \texttt{02A7D663} & \texttt{bge x15, x10, 68} & 若 $1 \ge n$ （处理异常负数输入），跳转至 \texttt{0x44} 返回值清零后返回 \\
+        \texttt{0x1C} & \texttt{00150613} & \texttt{addi x12, x10, 1} & 设置循环次数上限：\texttt{x12} = $n + 1$ \\
+        \texttt{0x20} & \texttt{00000713} & \texttt{addi x14, x0, 0} & 初始化第一项 $Fib(0) = 0$ 存入寄存器 \texttt{x14} \\
+        \texttt{0x24} & \texttt{00078513} & \texttt{addi x10, x15, 0} & 初始化第二项 $Fib(1) = 1$ 存入寄存器 \texttt{x10} \\
+        \texttt{0x28} & \texttt{00200793} & \texttt{addi x15, x0, 2} & 初始化循环计数器 $i = 2$ 存入 \texttt{x15} \\
+        \texttt{0x2C} & \texttt{00050693} & \texttt{addi x13, x10, 0} & 循环体起点：将当前的 $Fib(i-1)$（在 \texttt{x10} 中）存入暂存寄存器 \texttt{x13} \\
+        \texttt{0x30} & \texttt{00178793} & \texttt{addi x15, x15, 1} & 循环计数器自增：$i = i + 1$ \\
+        \texttt{0x34} & \texttt{00A70533} & \texttt{add x10, x14, x10} & 计算 $Fib(i) = Fib(i-2) + Fib(i-1)$ 并更新到 \texttt{x10} \\
+        \texttt{0x38} & \texttt{00068713} & \texttt{addi x14, x13, 0} & 更新 $Fib(i-2)$ 为旧的 $Fib(i-1)$（将 \texttt{x13} 赋给 \texttt{x14}） \\
+        \texttt{0x3C} & \texttt{FEF618E3} & \texttt{bne x12, x15, 44} & 若循环计数器未达到上限 $n+1$（即 \texttt{x12 != x15}），则跳转回 \texttt{0x2C} 再次执行循环 \\
+        \texttt{0x40} & \texttt{00008067} & \texttt{jalr x0, x1, 0} & 正常计算结束，函数返回，跳转回 \texttt{x1} （\texttt{0x08}） \\
+        \texttt{0x44} & \texttt{00000513} & \texttt{addi x10, x0, 0} & 异常处理：设定返回值 \texttt{x10} = 0 \\
+        \texttt{0x48} & \texttt{00008067} & \texttt{jalr x0, x1, 0} & 返回跳转，跳转回 \texttt{x1} （\texttt{0x08}） \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{寄存器分配与状态说明}
+\begin{itemize}
+    \item \texttt{x1} (\texttt{ra})：函数返回地址寄存器，存放主程序的 \texttt{0x08}。
+    \item \texttt{x10} (\texttt{a0})：参数与返回值寄存器。程序开始时保存待求的项数 $n$，随后用来保存当前迭代的斐波那契数值
+    $Fib(i)$，最终返回时亦存放计算结果，并通过 \texttt{dbgdata} 输送到数码管显示模块。
+    \item \texttt{x12} (\texttt{a2})：循环上限保存寄存器，值为 $n+1$。
+    \item \texttt{x13} (\texttt{a3})：中间数据暂存寄存器，用来保存计算过程中的中间项 $Fib(i-1)$。
+    \item \texttt{x14} (\texttt{a4})：迭代项 $Fib(i-2)$ 的存放寄存器。
+    \item \texttt{x15} (\texttt{a5})：循环变量 $i$ 的存放寄存器。
+\end{itemize}
+
+\paragraph{板级控制逻辑设计}
+在板级验证时，顶层模块 \texttt{top} 实现了对程序流的两个重要外部干预：
+\begin{enumerate}
+    \item \textbf{动态输入捕获}：当 CPU 指令计数器取到第一条指令 \texttt{0x00A00513} 时，
+    顶层模块通过多路选择器将其替换为 \texttt{addi x10, x0, SW} 指令（其中 \texttt{SW}
+    为板载 8 位拨码开关的状态）。这允许通过拨码开关动态地给程序传入计算参数 $n$（支持 0 到 255）。
+    \item \textbf{停机状态机}：当程序执行完 \texttt{jalr} 返回到 \texttt{0x08} 时，
+    取回的指令为自定义的停机码 \texttt{32'hdead10cc}。顶层模块的状态机捕获此码后，
+    将 \texttt{halted} 置为高电平。此时，顶层模块会将送入 CPU 的指令强制替换为 \texttt{nop} 指令
+    （即 \texttt{addi x0, x0, 0}），从而使得 PC 持续空转，CPU 内部的寄存器状态被锁定，
+    达到了停机的效果，且能够长期稳定地在数码管上显示第 $n$ 项的斐波那契数值。
+\end{enumerate}
+
+\section{实验总结与反思}
+
+在实验中，我最开始没有想到怎么处理这类程序的输入问题，此时该程序只能输出默认的 10 项的斐波那契数值。
+后来 AI 提醒我使用了这样一个巧妙的拦截来用拨码开关进行输入，才有了现在的程序。
+
+使用的汇编代码由网页的 Compiler Explorer 生成，然后翻译为机器码，这对于我来说比在本地配置 RISC-V 工具链更方便，
+也不需要使用虚拟机。但是 Compiler Explorer 生成的代码在使用前还需要进行专门的修改，有点麻烦。
+
+最开始实现 CPU 的时候，我的时钟接反了好几次，折腾了半天才弄好。
+
+综合后输出了一个文件 \texttt{tight\_setup\_hold\_pins}，提醒我有很多地方的时序都很紧张，
+这可能就是单周期 CPU 的一个主要缺陷吧。
+
+\end{document}
