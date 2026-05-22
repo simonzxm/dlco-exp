@@ -431,6 +431,6 @@ module rv32ip (
     end
   end
 
-  assign dbgdata = PC_IF;
+  assign dbgdata = myregfile.regs[10];
 
 endmodule
