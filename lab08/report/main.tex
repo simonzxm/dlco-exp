@@ -1,0 +1,139 @@
+\documentclass[12pt, a4paper]{ctexart}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
+\usepackage{float}
+
+% Code snippet settings
+\lstset{
+    basicstyle=\ttfamily\small,
+    frame=single,
+    framesep=5pt,
+    xleftmargin=10pt,
+    xrightmargin=10pt,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    breaklines=true
+}
+
+\begin{document}
+
+% 封面
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge\bfseries 实验报告\par}
+    \vspace{2cm}
+    {\Large 课程：数字逻辑与计算机组成实验\par}
+    \vspace{1cm}
+    {\Large 实验八：CPU 数据通路\par}
+    \vspace{4cm}
+    {\large 姓名：\underline{\makebox[4cm]{郑袭明}}\par}
+    \vspace{1cm}
+    {\large 学号：\underline{\makebox[4cm]{251502027}}\par}
+    \vspace{1cm}
+    {\large 日期：\today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+\section{设计思路}
+
+\subsection{整体架构}
+
+本实验实现了 CPU 数据通路中的两个核心部件：算术逻辑单元（ALU）和数据存储器（DMEM）。
+ALU 负责执行各种算术与逻辑运算，并输出计算结果以及用于分支判断的信号；
+DMEM 则用于数据存储，能够支持字节（Byte）、半字（Halfword）和字（Word）级别的读写访问。
+
+在板级验证中，ALU 和 DMEM 通过各自的顶层模块 \texttt{top} 分别连接至板载的拨码开关、LED 和七段数码管。
+拨码开关用于模拟输入数据及控制信号，LED 和数码管用于实时观察模块输出的正确性。
+
+\subsection{算术逻辑单元 (ALU) 设计}
+
+ALU 模块的核心任务是根据 4 位控制信号 \texttt{ALUctr} 对两个 32 位操作数
+\texttt{dataa} 和 \texttt{datab} 进行运算，接口信号如图 \ref{fig:alu_block} 所示。
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[>=Stealth]
+        \node[draw, minimum height=1.5cm, align=center] (alu) {ALU \\ 算术逻辑单元};
+        \draw [<-] ([yshift=0.5cm]alu.west) -- ++(-1.5,0) node[left] {\texttt{dataa[31:0]}};
+        \draw [<-] ([yshift=0cm]alu.west) -- ++(-1.5,0) node[left] {\texttt{datab[31:0]}};
+        \draw [<-] ([yshift=-0.5cm]alu.west) -- ++(-1.5,0) node[left] {\texttt{ALUctr[3:0]}};
+        \draw [->] ([yshift=0.5cm]alu.east) -- ++(1.5,0) node[right] {\texttt{aluresult[31:0]}};
+        \draw [->] ([yshift=0cm]alu.east) -- ++(1.5,0) node[right] {\texttt{zero}};
+        \draw [->] ([yshift=-0.5cm]alu.east) -- ++(1.5,0) node[right] {\texttt{less}};
+    \end{tikzpicture}
+    \caption{ALU 模块接口信号图}
+    \label{fig:alu_block}
+\end{figure}
+
+其具体设计特点如下：
+\begin{enumerate}
+    \item \textbf{多功能运算支持}：利用 Verilog 的条件分支选择器实现了加法、减法、
+    逻辑左移、逻辑右移、算术右移、按位与、按位或、按位异或以及直接输出等多种运算。
+    \item \textbf{有符号与无符号比较}：通过 \texttt{ALUctr[3]} 信号区分有符号与无符号比较操作，
+    当执行比较时，将比较结果输出到 \texttt{less}。
+    \item \textbf{分支决策辅助}：当 \texttt{ALUctr[2:0]} 为等值比较指令对应的编码时，
+    \texttt{zero} 信号在两输入相等（即 \texttt{dataa == datab}）时输出高电平，便于分支指令
+    （如 \texttt{beq} / \texttt{bne}）进行条件跳转判断；而在其他运算下，
+    \texttt{zero} 信号表示运算结果 \texttt{aluresult} 是否为零。
+    \item \textbf{移位位数截断}：移位指令的移动位数仅取 \texttt{datab} 的低 5 位
+    （即 \texttt{datab[4:0]}），契合 RISC-V 32位架构的规范。
+\end{enumerate}
+
+\subsection{数据存储器 (DMEM) 设计}
+
+DMEM 模块利用 Vivado 的 Block Memory Generator IP 核（配置为 Simple Dual Port RAM）来存储数据。
+为了实现 RISC-V 中对字节、半字和字等不同宽度的加载与存储指令，
+设计了非对齐与宽度格式化的对齐逻辑，其接口信号如图 \ref{fig:dmem_block} 所示。
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[>=Stealth]
+        \node[draw, minimum height=2cm, align=center] (dmem) {DMEM \\ 数据存储器};
+        \draw [<-] ([yshift=0.8cm]dmem.west) -- ++(-1.5,0) node[left] {\texttt{addr[16:0]}};
+        \draw [<-] ([yshift=0.4cm]dmem.west) -- ++(-1.5,0) node[left] {\texttt{datain[31:0]}};
+        \draw [<-] ([yshift=0cm]dmem.west) -- ++(-1.5,0) node[left] {\texttt{clk}};
+        \draw [<-] ([yshift=-0.4cm]dmem.west) -- ++(-1.5,0) node[left] {\texttt{we}};
+        \draw [<-] ([yshift=-0.8cm]dmem.west) -- ++(-1.5,0) node[left] {\texttt{memop[2:0]}};
+        \draw [->] (dmem.east) -- ++(1.5,0) node[right] {\texttt{dataout[31:0]}};
+    \end{tikzpicture}
+    \caption{DMEM 模块接口信号图}
+    \label{fig:dmem_block}
+\end{figure}
+
+DMEM 访存处理流程设计如下：
+\begin{enumerate}
+    \item \textbf{带字节写使能的存储逻辑 (Write Enable Masking)}：
+    为 IP 级 RAM 启用了字节写使能功能。根据输入的控制信号 \texttt{memop} 和地址的低 2 位
+    \texttt{byte\_offset = addr[1:0]}，生成 4 位的写使能掩码 \texttt{wea}，
+    同时将待写入的数据 \texttt{datain} 移位对齐到对应的字节或半字位置，生成 \texttt{dina} 送入 IP 核。
+    这极大地简化了 \texttt{sb} (Store Byte) 和 \texttt{sh} (Store Halfword) 指令的处理，省去了先读出整字、拼接再写入的低效步骤。
+    
+    \item \textbf{对齐与数据扩展的加载逻辑 (Read Formatting)}：
+    从双端口 BRAM 读出的 32 位整字数据 \texttt{doutb} 需要根据 \texttt{byte\_offset}
+    提取出目标字节或半字。对于有符号加载指令（LB、LH），根据提取部分的高位进行符号位扩展（Sign Extension）；
+    对于无符号加载指令（LBU、LHU），则进行零扩展（Zero Extension）；对于字加载指令（LW），则直接输出整个 32 位字。
+\end{enumerate}
+
+系统通过 \texttt{memop[2:0]} 区分操作类型，其编码定义如下：
+\begin{itemize}
+    \item \texttt{3'b000}：有符号字节读写（LB / SB）
+    \item \texttt{3'b001}：有符号半字读写（LH / SH）
+    \item \texttt{3'b010}：字读写（LW / SW）
+    \item \texttt{3'b100}：无符号字节读（LBU）
+    \item \texttt{3'b101}：无符号半字读（LHU）
+\end{itemize}
+
+\section{实验总结与反思}
+
+本次实验相较于最近几次实验来说非常顺利，没有遇到什么问题。
+
+\end{document}
