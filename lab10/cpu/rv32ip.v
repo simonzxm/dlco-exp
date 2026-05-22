@@ -39,30 +39,30 @@ module rv32ip (
   assign imemaddr  = reset ? 32'b0 : PC_IF;
 
   reg [31:0] PC_ID;
-  reg [31:0] inst;
+  reg [31:0] instr;
 
   always @(negedge clock) begin
     if (reset || jump_real) begin
       PC_ID <= 32'b0;
-      inst  <= 32'h00000013;
+      instr <= 32'h00000013;
     end else if (!stall) begin
       PC_ID <= PC_IF;
-      inst  <= imemdataout;
+      instr <= imemdataout;
     end
   end
 
-  wire [6:0] op_ID = inst[6:0];
-  wire [4:0] rs1_ID = inst[19:15];
-  wire [4:0] rs2_ID = inst[24:20];
-  wire [4:0] rd_ID = inst[11:7];
-  wire [2:0] func3_ID = inst[14:12];
-  wire [6:0] func7_ID = inst[31:25];
+  wire [6:0] op_ID = instr[6:0];
+  wire [4:0] rs1_ID = instr[19:15];
+  wire [4:0] rs2_ID = instr[24:20];
+  wire [4:0] rd_ID = instr[11:7];
+  wire [2:0] func3_ID = instr[14:12];
+  wire [6:0] func7_ID = instr[31:25];
 
-  wire [31:0] immI = {{20{inst[31]}}, inst[31:20]};
-  wire [31:0] immU = {inst[31:12], 12'b0};
-  wire [31:0] immS = {{20{inst[31]}}, inst[31:25], inst[11:7]};
-  wire [31:0] immB = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
-  wire [31:0] immJ = {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0};
+  wire [31:0] immI = {{20{instr[31]}}, instr[31:20]};
+  wire [31:0] immU = {instr[31:12], 12'b0};
+  wire [31:0] immS = {{20{instr[31]}}, instr[31:25], instr[11:7]};
+  wire [31:0] immB = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
+  wire [31:0] immJ = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
 
   reg [31:0] imm_ID;
   reg [2:0] ExtOP_ID;
@@ -97,7 +97,7 @@ module rv32ip (
     MemWr_ID    = 1'b0;
     MemOP_ID    = 3'b000;
 
-    if (inst != 32'h0) begin
+    if (instr != 32'h0) begin
       case (op_ID[6:2])
         5'b01101: begin
           ExtOP_ID   = 3'b001;
@@ -230,8 +230,8 @@ module rv32ip (
       .rd2(rd2)
   );
 
-  wire use_rs1 = (inst != 32'h0) && (op_ID[6:2] != 5'b01101) && (op_ID[6:2] != 5'b00101) && (op_ID[6:2] != 5'b11011);
-  wire use_rs2 = (inst != 32'h0) && ((op_ID[6:2] == 5'b01100) || (op_ID[6:2] == 5'b01000) || (op_ID[6:2] == 5'b11000));
+  wire use_rs1 = (instr != 32'h0) && (op_ID[6:2] != 5'b01101) && (op_ID[6:2] != 5'b00101) && (op_ID[6:2] != 5'b11011);
+  wire use_rs2 = (instr != 32'h0) && ((op_ID[6:2] == 5'b01100) || (op_ID[6:2] == 5'b01000) || (op_ID[6:2] == 5'b11000));
 
   reg [4:0] rd_EX;
   reg RegWr_EX;
@@ -272,7 +272,7 @@ module rv32ip (
       RegWr_EX    <= 1'b0;
     end else begin
       PC_EX       <= PC_ID;
-      inst_EX     <= inst;
+      inst_EX     <= instr;
       val1_EX     <= rd1;
       val2_EX     <= rd2;
       imm_EX      <= imm_ID;
