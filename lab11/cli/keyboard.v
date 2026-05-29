@@ -24,7 +24,6 @@ module keyboard (
   wire [7:0] raw_ascii;
 
   scancode_ram myram (
-      .clk(clk),
       .addr(cur_key),
       .outdata(raw_ascii)
   );
