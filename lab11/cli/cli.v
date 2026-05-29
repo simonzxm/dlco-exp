@@ -26,6 +26,7 @@ module cli (
         cursor_y <= (cursor_y == 29) ? 0 : cursor_y + 1;
         vram[(cursor_y*80)+cursor_x] <= ascii_key;
       end else begin
+        cursor_x <= cursor_x + 1;
         vram[(cursor_y*80)+cursor_x] <= ascii_key;
       end
     end
