@@ -36,10 +36,13 @@ module cli (
     end
   end
 
-  wire [ 5:0] y_sum = v_addr[9:4] + cursor_y + 6'd1;
-  wire [ 4:0] vram_row = offset ? ((y_sum >= 6'd30) ? (y_sum - 6'd30) : y_sum) : v_addr[9:4];
+  wire [5:0] y_sum = v_addr[9:4] + cursor_y + 6'd1;
+  wire [4:0] vram_row = offset ? ((y_sum >= 6'd30) ? (y_sum - 6'd30) : y_sum) : v_addr[9:4];
 
-  wire [11:0] font_row = font_rom[{vram[(vram_row*80)+h_addr[9:3]], v_addr[3:0]}];
+  wire is_blank = (vram_row == cursor_y && h_addr[9:3] >= cursor_x) || (!offset && vram_row > cursor_y);
+  wire [7:0] char_code = is_blank ? 8'h20 : vram[(vram_row*80)+h_addr[9:3]];
+
+  wire [11:0] font_row = font_rom[{char_code, v_addr[3:0]}];
   assign vga_data = font_row[h_addr[2:0]] ? 12'hFFF : 12'h000;
 
 endmodule
