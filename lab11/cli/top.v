@@ -19,7 +19,7 @@ module top (
       .ps2_clk(PS2_CLK),
       .ps2_data(PS2_DATA),
       .key_count(key_count),
-      .ascii_key(ascii_key),
+      .ascii_key(ascii_key)
   );
 
   wire clk_25mhz;
