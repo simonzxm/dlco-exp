@@ -16,6 +16,7 @@ module cli (
   reg [7:0] prev_key_count = 0;
   reg offset = 0;
   reg [2399:0] vram_valid = 0;
+  wire [4:0] prev_y = (cursor_y == 0) ? 29 : cursor_y - 1;
   wire [4:0] next_y = (cursor_y == 29) ? 0 : cursor_y + 1;
 
   always @(posedge clk) begin
@@ -26,6 +27,15 @@ module cli (
         cursor_y <= next_y;
         if (cursor_y == 29) offset <= 1;
         vram_valid[next_y*80+:80] <= 80'b0;
+      end else if (ascii_key == 8'h08) begin
+        if (cursor_x > 0) begin
+          cursor_x <= cursor_x - 1;
+          vram_valid[(cursor_y*80)+cursor_x-1] <= 1'b0;
+        end else if (cursor_y != 0 || offset == 1) begin
+          cursor_x <= 79;
+          cursor_y <= prev_y;
+          vram_valid[(prev_y*80)+79] <= 1'b0;
+        end
       end else if ((ascii_key >= 8'h20) && (ascii_key <= 8'h7E)) begin
         vram[(cursor_y*80)+cursor_x] <= ascii_key;
         vram_valid[(cursor_y*80)+cursor_x] <= 1'b1;
