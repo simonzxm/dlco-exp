@@ -11,15 +11,15 @@ module top (
 );
 
   wire [7:0] ascii_key;
-  wire left_shift;
+  wire [7:0] key_count;
 
   keyboard key_inst (
       .clk(CLK100MHZ),
       .clrn(CPU_RESETN),
       .ps2_clk(PS2_CLK),
       .ps2_data(PS2_DATA),
+      .key_count(key_count),
       .ascii_key(ascii_key),
-      .left_shift(left_shift)
   );
 
   wire clk_25mhz;
@@ -31,16 +31,15 @@ module top (
 
   wire [9:0] h_addr;
   wire [9:0] v_addr;
-  wire valid;
   wire [11:0] vga_data;
-  wire [18:0] rom_addr;
 
-  assign rom_addr = {h_addr, v_addr[8:0]};
-
-  image_rom image_rom_inst (
-      .clka (clk_25mhz),
-      .addra(rom_addr),
-      .douta(vga_data)
+  cli cli_inst (
+      .clk(CLK100MHZ),
+      .ascii_key(ascii_key),
+      .key_count(key_count),
+      .h_addr(h_addr),
+      .v_addr(v_addr),
+      .vga_data(vga_data)
   );
 
   vga_ctrl vga_ctrl_inst (
@@ -51,7 +50,6 @@ module top (
       .v_addr(v_addr),
       .hsync(VGA_HS),
       .vsync(VGA_VS),
-      .valid(valid),
       .vga_r(VGA_R),
       .vga_g(VGA_G),
       .vga_b(VGA_B)
