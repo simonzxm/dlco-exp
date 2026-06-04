@@ -1,0 +1,120 @@
+\documentclass[12pt, a4paper]{ctexart}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
+
+% Code snippet settings
+\lstset{
+    basicstyle=\ttfamily\small,
+    frame=single,
+    framesep=5pt,
+    xleftmargin=10pt,
+    xrightmargin=10pt,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    breaklines=true
+}
+
+\begin{document}
+
+% 封面
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge\bfseries 实验报告\par}
+    \vspace{2cm}
+    {\Large 课程：数字逻辑与计算机组成实验\par}
+    \vspace{1cm}
+    {\Large 实验十：RV32I 流水线 CPU\par}
+    \vspace{4cm}
+    {\large 姓名：\underline{\makebox[4cm]{郑袭明}}\par}
+    \vspace{1cm}
+    {\large 学号：\underline{\makebox[4cm]{251502027}}\par}
+    \vspace{1cm}
+    {\large 日期：\today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+\section{设计思路与架构差异}
+
+\subsection{五级流水线架构与时钟调整}
+
+本实验将 Lab 9 的单周期 CPU 升级为标准的五级流水线 CPU，划分取指、译码、执行、访存和写回五个阶段。
+在各阶段之间引入了流水线寄存器以缓存数据和控制信号（如 \texttt{PC\_ID}、\texttt{instr}、
+\texttt{PC\_EX}、\texttt{val1\_EX}、\texttt{aluresult\_MEM} 等）。
+
+同时，时钟与读写逻辑作出了如下调整：
+\begin{enumerate}
+    \item \textbf{寄存器堆}：由 Lab 9 的下降沿写回改为上升沿写回，并实现了前推逻辑，
+    在读写同一寄存器时直接输出写入值，以解决写回阶段到译码阶段的数据冲突。
+    \item \textbf{存储器时钟}：指令存储器时钟 \texttt{imemclk} 改为 \texttt{clock}（同相），以配合流水线节拍。
+\end{enumerate}
+
+\subsection{流水线冲突解决机制}
+
+流水线引入了以下两种冲突解决机制：
+\begin{itemize}
+    \item \textbf{数据冲突}：
+    \begin{itemize}
+        \item \textbf{前推机制}：在执行阶段引入前推单元。若检测到当前源寄存器与访存或写回阶段的目标寄存器相同，
+        则直接将访存阶段计算结果或写回数据前推给 ALU 输入端，避免了绝大多数 RAW 冲突引起的暂停。
+        \item \textbf{暂停机制}：对于 Load-Use 冲突（即上一条是 Load 指令，且当前指令需要读取其加载的寄存器），
+        由于数据在访存阶段结束后才能获得，无法通过前推完全解决。此时通过暂停单元拉高 \texttt{stall} 信号，
+        保持 \texttt{PC\_IF} 和 \texttt{PC\_ID} 不变，并在译码/执行流水线寄存器中清零控制信号以插入一个 NOP。
+    \end{itemize}
+    \item \textbf{控制冲突}：
+    分支与跳转决策在执行阶段完成。当检测到跳转发生时，需清空已被读入但失效的指令，
+    即向译码阶段与执行阶段的流水线寄存器中强制写入 NOP，实现 2 个周期的流水线冲刷。
+\end{itemize}
+
+\subsection{斐波那契程序机器码调整与前瞻取指}
+
+由于分支跳转延迟的存在，CPU 会在执行阶段跳转结果确定前，前瞻性地预取后续的 2 条指令。
+
+顶层模块 \texttt{top} 的停机逻辑通过监测指令总线上的自定义停机码 \texttt{32'hdead10cc} 来触发挂起状态。
+若将停机码紧跟在 \texttt{jal} 之后放置（如 Lab 9 中的设计，位于 \texttt{0x08}），
+当 \texttt{jal} 指令尚在译码与执行阶段时，停机码已被预取并呈现在指令存储器输出总线上。
+这将错误地触发顶层模块的停机状态机，导致程序未进入斐波那契循环就已停机。
+
+因此，在 \texttt{fib.coe} 中进行了如下调整：
+\begin{enumerate}
+    \item 在 \texttt{jal} 指令之后插入了 2 条 \texttt{nop} 指令（即在 \texttt{0x08} 和
+    \texttt{0x0c} 填入 \texttt{32'h00000013}），将停机码推迟到 \texttt{0x10} 处。
+    \item 将 \texttt{jal} 的跳转偏移量由 12 修正为 16（目标地址变为 \texttt{0x14}）。
+    \item 当子程序通过 \texttt{jalr} 返回时，跳转至保存的返回地址 \texttt{0x08}，
+    顺序执行 2 个 \texttt{nop} 指令后，于 \texttt{0x10} 正常读取并执行停机码。
+\end{enumerate}
+
+\subsection{时序收敛与综合结果对比}
+
+由于流水线结构将单周期的长组合路径（寄存器堆 $\to$ ALU $\to$ 数据存储器$\to$ 寄存器堆）
+拆分为五个独立阶段，关键路径被极大地缩短。
+
+对比编译报告 \texttt{tight\_setup\_hold\_pins.txt}：
+\begin{itemize}
+    \item \textbf{Lab 9 单周期 CPU}：存在大量时序极度紧张的引脚（日志大小约 3.9 KB），时序裕量极低。
+    \item \textbf{Lab 10 流水线 CPU}：仅剩 1 个时序紧张引脚（\texttt{cpu/PC\_IF\_reg[0]/D}，
+    日志仅 815 字节），整体建立与保持时间裕量显著提升，大幅提高了主频上限。
+\end{itemize}
+
+\section{实验总结与反思}
+
+流水线不再需要上升沿写，下降沿读，但我最开始写的时候忘记改这里了，就造成了时序问题；把时钟改一下就好了。
+
+斐波那契程序部分，由于停机指令会被提前读取，我最开始实验的时候程序无法输出正确的结果（只能原样输出输入的数字）。
+我始终没发现这个问题，后来问了 AI 才意识到这个点，加了两个 nop 就可以了。
+查询有关资料，可以知道在跳转指令后加 nop 是很常见的，这里的 nop 被称为分支延迟槽，可以防止程序逻辑出错。
+
+把单周期和流水线相对比，在没有跑过综合的时候我是没想到时序紧张程度会差这么多
+（我中间有一次综合的结果里，一个时序紧张的引脚都没有），这是我没想到的。
+
+总的来说，很多问题是我在做实验的时候才能发现的，之前没有亲自上手做真的体会不到。也算是特别的收获吧。
+
+\end{document}
