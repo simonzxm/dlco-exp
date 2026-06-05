@@ -1,0 +1,6 @@
+*.o
+*.dump
+*.tmp
+*.elf
+*.hex
+*.coe
