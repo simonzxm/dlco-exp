@@ -1,7 +1,5 @@
 #include "sys.h"
 
-char hello[] = "Hello World 2026!\n";
-
 int main();
 
 // setup the entry point
@@ -13,9 +11,6 @@ void entry() {
 
 int main() {
     vga_init();
-
-    putstr(hello);
-
     while (1) {
         putch(getch());
     }

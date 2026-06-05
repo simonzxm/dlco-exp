@@ -3,9 +3,9 @@
 char *vga_start = (char *)VGA_START;
 volatile int *vga_lineo = (volatile int *)VGA_LINE_O;
 
-int vga_line = 0;    // physical vram row of the cursor (0..VGA_MAXLINE-1)
-int vga_ch = 0;      // cursor column (0..VGA_MAXCOL-1)
-int start_line = 0;  // physical row currently shown at the top of the screen
+int vga_line = 0;
+int vga_ch = 0;
+int start_line = 0;
 
 static void clear_line(int line) {
     for (int j = 0; j < VGA_MAXCOL; j++)
@@ -21,8 +21,6 @@ void vga_init() {
         clear_line(i);
 }
 
-// Move the cursor to the start of the next line, scrolling the screen up by one
-// (via the hardware start-row register) when it would wrap onto the top line.
 static void newline() {
     vga_ch = 0;
     vga_line++;
@@ -38,14 +36,14 @@ static void newline() {
 }
 
 void putch(char ch) {
-    if (ch == '\r' || ch == '\n') {  // enter / newline
+    if (ch == '\r' || ch == '\n') {
         newline();
         return;
     }
-    if (ch == 8 || ch == 127) {  // backspace / delete
+    if (ch == 8 || ch == 127) {
         if (vga_ch > 0) {
             vga_ch--;
-        } else if (vga_line != start_line) {  // back up to end of previous line
+        } else if (vga_line != start_line) {
             vga_line = (vga_line == 0) ? VGA_MAXLINE - 1 : vga_line - 1;
             vga_ch = VGA_MAXCOL - 1;
         }
@@ -54,18 +52,10 @@ void putch(char ch) {
     }
     vga_start[(vga_line << 7) + vga_ch] = ch;
     vga_ch++;
-    if (vga_ch >= VGA_MAXCOL)  // auto-wrap at end of line
+    if (vga_ch >= VGA_MAXCOL)
         newline();
 }
 
-void putstr(char *str) {
-    for (char *p = str; *p != 0; p++)
-        putch(*p);
-}
-
-// Block until a key is pressed, then return its ASCII code. The keyboard
-// peripheral packs {key_count, ascii_key}; key_count bumps on every keypress,
-// so a changed count means a fresh key is available.
 char getch(void) {
     static int last_count = 0;
     volatile unsigned int *key_reg = (volatile unsigned int *)KEY_START;

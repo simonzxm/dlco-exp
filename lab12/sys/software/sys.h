@@ -9,9 +9,7 @@
 extern int vga_line;
 extern int vga_ch;
 
-void putstr(char *str);
-void putch(char ch);
-
 void vga_init(void);
 
+void putch(char ch);
 char getch(void);
