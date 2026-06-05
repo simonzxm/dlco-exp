@@ -1,6 +1,8 @@
 module top (
     input        CLK100MHZ,
     input        CPU_RESETN,
+    input        PS2_CLK,
+    input        PS2_DATA,
     output [3:0] VGA_R,
     output [3:0] VGA_G,
     output [3:0] VGA_B,
@@ -67,14 +69,28 @@ module top (
   vga_char vga (
       .wclk    (dmemwrclk),
       .we      (vga_we),
-      .waddr   (dmemaddr[11:0]),
+      .waddr   (dmemaddr[16:0]),
       .wdata   (dmemdatain[7:0]),
       .h_addr  (h_addr),
       .v_addr  (v_addr),
       .vga_data(vga_data)
   );
 
-  assign dmemdataout = (dmemaddr[31:20] == 12'h001) ? dmem_out : 32'b0;
+  // Keyboard
+  wire [7:0] key_count, ascii_key;
+  keyboard kbd (
+      .clk      (CLK100MHZ),
+      .clrn     (CPU_RESETN),
+      .ps2_clk  (PS2_CLK),
+      .ps2_data (PS2_DATA),
+      .key_count(key_count),
+      .ascii_key(ascii_key)
+  );
+  reg [31:0] key_reg;
+  always @(posedge dmemrdclk) key_reg <= {16'b0, key_count, ascii_key};
+
+  assign dmemdataout = (dmemaddr[31:20] == 12'h001) ? dmem_out :
+                       (dmemaddr[31:20] == 12'h003) ? key_reg : 32'b0;
 
   // VGA output
   vga_ctrl vga_ctrl_inst (

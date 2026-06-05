@@ -4,7 +4,14 @@
 #define LINE_MASK 0x003f
 #define VGA_MAXCOL 70
 
+#define KEY_START 0x00300000
+
+extern int vga_line;
+extern int vga_ch;
+
 void putstr(char *str);
 void putch(char ch);
 
 void vga_init(void);
+
+char getch(void);

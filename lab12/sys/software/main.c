@@ -15,7 +15,9 @@ int main() {
     vga_init();
 
     putstr(hello);
+
     while (1) {
-    };
+        putch(getch());
+    }
     return 0;
 }
