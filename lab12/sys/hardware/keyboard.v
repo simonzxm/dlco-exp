@@ -99,6 +99,9 @@ module keyboard (
         read <= 1;
         if (keydata == 8'hF0) begin
           is_break <= 1;
+        end else if (keydata == 8'hE0) begin
+          // extended-key prefix (arrows / home / end / delete):
+          // ignore it, the real scancode follows in the next byte
         end else if (is_break) begin
           is_break <= 0;
           if (keydata == 8'h12) left_shift <= 0;

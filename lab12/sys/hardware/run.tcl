@@ -41,13 +41,13 @@ set_property -dict [list \
 generate_target all [get_ips blk_mem_gen_0]
 synth_ip [get_ips blk_mem_gen_0]
 
-# Instruction ROM (imem), 1K words, initialized from main.coe
+# Instruction ROM (imem), 2K words, initialized from main.coe
 create_ip -name blk_mem_gen -vendor xilinx.com -library ip -version 8.4 \
     -module_name blk_mem_gen_1 -dir $IP_DIR
 set_property -dict [list \
     CONFIG.Memory_Type {Single_Port_ROM} \
     CONFIG.Write_Width_A {32} \
-    CONFIG.Write_Depth_A {1024} \
+    CONFIG.Write_Depth_A {2048} \
     CONFIG.Read_Width_A {32} \
     CONFIG.Enable_A {Always_Enabled} \
     CONFIG.Register_PortA_Output_of_Memory_Primitives {false} \

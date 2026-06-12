@@ -21,7 +21,7 @@ void vga_init() {
         clear_line(i);
 }
 
-static void newline() {
+static void new_line() {
     vga_ch = 0;
     vga_line++;
     if (vga_line >= VGA_MAXLINE)
@@ -37,7 +37,7 @@ static void newline() {
 
 void putch(char ch) {
     if (ch == '\r' || ch == '\n') {
-        newline();
+        new_line();
         return;
     }
     if (ch == 8 || ch == 127) {
@@ -53,7 +53,7 @@ void putch(char ch) {
     vga_start[(vga_line << 7) + vga_ch] = ch;
     vga_ch++;
     if (vga_ch >= VGA_MAXCOL)
-        newline();
+        new_line();
 }
 
 char getch(void) {
@@ -66,5 +66,15 @@ char getch(void) {
             last_count = count;
             return (char)(w & 0xff);
         }
+    }
+}
+
+// Move the write cursor one cell to the left without erasing
+void cursor_left(void) {
+    if (vga_ch > 0) {
+        vga_ch--;
+    } else if (vga_line != start_line) {
+        vga_line = (vga_line == 0) ? VGA_MAXLINE - 1 : vga_line - 1;
+        vga_ch = VGA_MAXCOL - 1;
     }
 }

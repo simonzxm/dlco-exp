@@ -5,7 +5,7 @@
 #define VGA_LINE_O 0x00210000
 #define VGA_MAXLINE 30
 #define LINE_MASK 0x003f
-#define VGA_MAXCOL 70
+#define VGA_MAXCOL 80
 #define KEY_START 0x00300000
 
 extern int vga_line;
@@ -15,5 +15,6 @@ void vga_init(void);
 
 void putch(char ch);
 char getch(void);
+void cursor_left(void);
 
 #endif
