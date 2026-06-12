@@ -11,11 +11,13 @@ module vga_char (
   reg [7:0] vram[4095:0];
   reg [11:0] font_rom[4095:0];
   reg [4:0] start_row = 0;
+  reg [11:0] cursor_pos = 0;
   initial $readmemh("vga_font.txt", font_rom);
 
   always @(posedge wclk)
     if (we) begin
-      if (waddr[16]) start_row <= wdata[4:0];
+      if (waddr[16]) start_row <= wdata[4:0]; // scroll register
+      else if (waddr[15]) cursor_pos <= waddr[11:0]; // cursor-position register
       else vram[waddr[11:0]] <= wdata;
     end
 
@@ -26,6 +28,6 @@ module vga_char (
   wire [ 7:0] ch = vram[idx];
   wire [ 7:0] code = (ch < 8'h20) ? 8'h20 : ch;
   wire [11:0] font_row = font_rom[{code, v_addr[3:0]}];
-  assign vga_data = font_row[h_addr[2:0]] ? 12'hFFF : 12'h000;
+  assign vga_data = (font_row[h_addr[2:0]] ^ (idx == cursor_pos)) ? 12'hFFF : 12'h000;
 
 endmodule

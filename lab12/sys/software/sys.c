@@ -1,6 +1,7 @@
 #include "sys.h"
 
 char *vga_start = (char *)VGA_START;
+volatile char *vga_cursor = (volatile char *)VGA_CURSOR;
 volatile int *vga_lineo = (volatile int *)VGA_LINE_O;
 
 int vga_line = 0;
@@ -10,15 +11,6 @@ int start_line = 0;
 static void clear_line(int line) {
     for (int j = 0; j < VGA_MAXCOL; j++)
         vga_start[(line << 7) + j] = 0;
-}
-
-void vga_init() {
-    vga_line = 0;
-    vga_ch = 0;
-    start_line = 0;
-    *vga_lineo = 0;
-    for (int i = 0; i < VGA_MAXLINE; i++)
-        clear_line(i);
 }
 
 static void new_line() {
@@ -35,9 +27,23 @@ static void new_line() {
     }
 }
 
+// Tell the VGA which cell holds the (non-blinking, reverse-video) cursor.
+static void move_cursor(void) { vga_cursor[(vga_line << 7) + vga_ch] = 0; }
+
+void vga_init() {
+    vga_line = 0;
+    vga_ch = 0;
+    start_line = 0;
+    *vga_lineo = 0;
+    for (int i = 0; i < VGA_MAXLINE; i++)
+        clear_line(i);
+    move_cursor();
+}
+
 void putch(char ch) {
     if (ch == '\r' || ch == '\n') {
         new_line();
+        move_cursor();
         return;
     }
     if (ch == 8 || ch == 127) {
@@ -48,12 +54,14 @@ void putch(char ch) {
             vga_ch = VGA_MAXCOL - 1;
         }
         vga_start[(vga_line << 7) + vga_ch] = 0;
+        move_cursor();
         return;
     }
     vga_start[(vga_line << 7) + vga_ch] = ch;
     vga_ch++;
     if (vga_ch >= VGA_MAXCOL)
         new_line();
+    move_cursor();
 }
 
 char getch(void) {
@@ -77,4 +85,5 @@ void cursor_left(void) {
         vga_line = (vga_line == 0) ? VGA_MAXLINE - 1 : vga_line - 1;
         vga_ch = VGA_MAXCOL - 1;
     }
+    move_cursor();
 }

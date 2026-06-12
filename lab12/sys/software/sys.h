@@ -2,6 +2,7 @@
 #define SYS_H
 
 #define VGA_START 0x00200000
+#define VGA_CURSOR 0x00208000
 #define VGA_LINE_O 0x00210000
 #define VGA_MAXLINE 30
 #define LINE_MASK 0x003f
