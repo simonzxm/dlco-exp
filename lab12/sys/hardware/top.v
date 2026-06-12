@@ -89,8 +89,19 @@ module top (
   reg [31:0] key_reg;
   always @(posedge dmemrdclk) key_reg <= {16'b0, key_count, ascii_key};
 
+  wire        time_we = dmemwe & (dmemaddr[31:20] == 12'h004);
+  wire [31:0] time_reg;
+  timer timer_inst (
+      .clk     (CLK100MHZ),
+      .reset   (reset),
+      .we      (time_we),
+      .wdata   (dmemdatain),
+      .time_reg(time_reg)
+  );
+
   assign dmemdataout = (dmemaddr[31:20] == 12'h001) ? dmem_out :
-                       (dmemaddr[31:20] == 12'h003) ? key_reg : 32'b0;
+                       (dmemaddr[31:20] == 12'h003) ? key_reg :
+                       (dmemaddr[31:20] == 12'h004) ? time_reg : 32'b0;
 
   // VGA output
   vga_ctrl vga_ctrl_inst (

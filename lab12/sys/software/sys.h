@@ -8,6 +8,7 @@
 #define LINE_MASK 0x003f
 #define VGA_MAXCOL 80
 #define KEY_START 0x00300000
+#define TIME_START 0x00400000
 
 extern int vga_line;
 extern int vga_ch;

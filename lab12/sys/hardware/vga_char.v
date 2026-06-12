@@ -16,8 +16,8 @@ module vga_char (
 
   always @(posedge wclk)
     if (we) begin
-      if (waddr[16]) start_row <= wdata[4:0]; // scroll register
-      else if (waddr[15]) cursor_pos <= waddr[11:0]; // cursor-position register
+      if (waddr[16]) start_row <= wdata[4:0];  // scroll register
+      else if (waddr[15]) cursor_pos <= waddr[11:0];  // cursor-position register
       else vram[waddr[11:0]] <= wdata;
     end
 
