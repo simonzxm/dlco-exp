@@ -4,6 +4,7 @@
 
 #define FS_MAX_NODES 64
 #define FS_NAME_MAX 16
+#define FS_DATA 256
 
 typedef struct {
     char name[FS_NAME_MAX];
@@ -13,6 +14,7 @@ typedef struct {
     int first_child;
     int next_sibling;
     const char *content;
+    char data[FS_DATA];
 } fs_node;
 
 static fs_node nodes[FS_MAX_NODES];
@@ -231,6 +233,41 @@ void cmd_rmdir(const char *args) {
         return;
     }
     unlink_node(n);
+}
+
+const char *fs_read(const char *path) {
+    int n = fs_resolve(path);
+    if (n < 0 || nodes[n].is_dir)
+        return 0;
+    return nodes[n].content ? nodes[n].content : "";
+}
+
+// Write data to a file (create if missing). Truncate unless append.
+// Returns 0 on success, -1 on a bad path or if the target is a directory.
+int fs_write(const char *path, const char *data, int append) {
+    int n = fs_resolve(path);
+    if (n < 0) {
+        const char *leaf;
+        int parent = split_parent(path, &leaf);
+        int len = str_len(leaf);
+        if (parent < 0 || !nodes[parent].is_dir || len == 0 ||
+            len >= FS_NAME_MAX)
+            return -1;
+        n = new_node(parent, leaf, 0, 0);
+        if (n < 0)
+            return -1;
+    }
+    if (nodes[n].is_dir)
+        return -1;
+    fs_node *f = &nodes[n];
+    if (!append || f->content != f->data)
+        f->data[0] = '\0';
+    f->content = f->data;
+    int i = str_len(f->data);
+    while (*data && i < FS_DATA - 1)
+        f->data[i++] = *data++;
+    f->data[i] = '\0';
+    return 0;
 }
 
 void fs_init(void) {

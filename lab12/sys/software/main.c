@@ -166,6 +166,58 @@ static char *trim_stage(char *s) {
     return s;
 }
 
+// Parse <, > and >> redirections
+static char *parse_redir(char *s, const char **infile, const char **outfile,
+                         int *append) {
+    *infile = 0;
+    *outfile = 0;
+    *append = 0;
+    char *w = s;
+    char *r = s;
+    int wrote = 0;
+    while (*r) {
+        while (*r == ' ')
+            r++;
+        if (!*r)
+            break;
+        char c = *r;
+        if (c == '<' || c == '>') {
+            r++;
+            int ap = 0;
+            if (c == '>' && *r == '>') {
+                ap = 1;
+                r++;
+            }
+            while (*r == ' ')
+                r++;
+            char *name = r;
+            while (*r && *r != ' ')
+                r++;
+            if (*r)
+                *r++ = '\0';
+            if (c == '<')
+                *infile = name;
+            else {
+                *outfile = name;
+                *append = ap;
+            }
+        } else {
+            char *tok = r;
+            while (*r && *r != ' ')
+                r++;
+            if (*r)
+                *r++ = '\0';
+            if (wrote)
+                *w++ = ' ';
+            while (*tok)
+                *w++ = *tok++;
+            wrote = 1;
+        }
+    }
+    *w = '\0';
+    return s;
+}
+
 #define MAX_STAGES 8
 #define PIPE_BUF 1024
 
@@ -181,19 +233,42 @@ static void run_command(char *line) {
         }
     }
 
-    static char bufA[PIPE_BUF], bufB[PIPE_BUF];
+    static char bufA[PIPE_BUF], bufB[PIPE_BUF], filebuf[PIPE_BUF];
     const char *prev = 0;
     for (int i = 0; i < n; i++) {
-        char *stage = trim_stage(stages[i]);
+        const char *infile, *outfile;
+        int append;
+        char *stage =
+            parse_redir(trim_stage(stages[i]), &infile, &outfile, &append);
+
+        if (infile) {
+            g_stdin = fs_read(infile);
+            if (!g_stdin) {
+                println("no such file: ", infile);
+                continue;
+            }
+        } else {
+            g_stdin = prev;
+        }
+
         char *cur = (i & 1) ? bufB : bufA;
-        g_stdin = prev;
-        if (i < n - 1)
+        if (outfile)
+            out_redirect(filebuf, PIPE_BUF);
+        else if (i < n - 1)
             out_redirect(cur, PIPE_BUF);
         else
             out_restore();
+
         dispatch(stage);
-        if (i < n - 1)
+
+        if (outfile) {
+            out_restore();
+            if (fs_write(outfile, filebuf, append) < 0)
+                println("cannot write: ", outfile);
+            prev = 0;
+        } else if (i < n - 1) {
             prev = cur;
+        }
     }
     out_restore();
     g_stdin = 0;

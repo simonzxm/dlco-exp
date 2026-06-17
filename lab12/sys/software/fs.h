@@ -11,4 +11,7 @@ void cmd_rm(const char *args);
 void cmd_rmdir(const char *args);
 void cmd_pwd(const char *args);
 
+const char *fs_read(const char *path);
+int fs_write(const char *path, const char *data, int append);
+
 #endif
