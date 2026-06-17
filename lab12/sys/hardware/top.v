@@ -45,7 +45,7 @@ module top (
   // Instruction ROM
   blk_mem_gen_1 imem (
       .clka (imemclk),
-      .addra(imemaddr[12:2]),
+      .addra(imemaddr[13:2]),
       .douta(imemdataout)
   );
 
