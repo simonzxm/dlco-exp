@@ -14,6 +14,7 @@ extern int vga_line;
 extern int vga_ch;
 
 void vga_init(void);
+void vga_clear(void);
 
 void putch(char ch);
 char getch(void);

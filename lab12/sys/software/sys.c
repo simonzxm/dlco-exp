@@ -30,7 +30,7 @@ static void new_line() {
 // Tell the VGA which cell holds the (non-blinking, reverse-video) cursor.
 static void move_cursor(void) { vga_cursor[(vga_line << 7) + vga_ch] = 0; }
 
-void vga_init() {
+void vga_clear(void) {
     vga_line = 0;
     vga_ch = 0;
     start_line = 0;
@@ -39,6 +39,8 @@ void vga_init() {
         clear_line(i);
     move_cursor();
 }
+
+void vga_init() { vga_clear(); }
 
 void putch(char ch) {
     if (ch == '\r' || ch == '\n') {

@@ -115,8 +115,14 @@ static void cmd_grep(const char *args) {
     }
 }
 
+static void cmd_clear(const char *args) {
+    (void)args;
+    vga_clear();
+}
+
 #define COMMAND_LIST(X)                                                        \
     X("hello", cmd_hello)                                                      \
+    X("clear", cmd_clear)                                                      \
     X("time", cmd_time)                                                        \
     X("fibn", cmd_fibn)                                                        \
     X("echo", cmd_echo)                                                        \
