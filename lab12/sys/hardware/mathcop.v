@@ -8,9 +8,11 @@ module mathcop (
 );
 
   // op: 0 IMUL 1 UDIV 2 UREM 3 FADD 4 FSUB 5 FMUL 6 FDIV 7 ITOF 8 FTOI
+  localparam COMB_WAIT = 3'd4;  // settle cycles for the combinational ops
   reg [31:0] rA, rB, result;
   reg  [ 3:0] op;
   reg         busy;
+  reg  [ 2:0] cnt;
 
   wire        op_we = we && !busy && (addr[4:2] == 3'd2);
   wire [ 3:0] nop = wdata[3:0];
@@ -45,12 +47,12 @@ module mathcop (
       .y (ftoi_y)
   );
 
-  wire [31:0] comb_y = (nop == 4'd0) ? imul_y :
-                       (nop == 4'd3) ? fadd_y :
-                       (nop == 4'd4) ? fsub_y :
-                       (nop == 4'd5) ? fmul_y :
-                       (nop == 4'd7) ? itof_y :
-                       (nop == 4'd8) ? ftoi_y : 32'b0;
+  wire [31:0] comb_y = (op == 4'd0) ? imul_y :
+                       (op == 4'd3) ? fadd_y :
+                       (op == 4'd4) ? fsub_y :
+                       (op == 4'd5) ? fmul_y :
+                       (op == 4'd7) ? itof_y :
+                       (op == 4'd8) ? ftoi_y : 32'b0;
 
   wire idiv_start = op_we && (nop == 4'd1 || nop == 4'd2);
   wire fdiv_start = op_we && (nop == 4'd6);
@@ -89,16 +91,25 @@ module mathcop (
     end else if (we && !busy && addr[4:2] == 3'd1) begin
       rB <= wdata;
     end else if (op_we) begin
-      op <= nop;
-      if (nop == 4'd1 || nop == 4'd2 || nop == 4'd6) busy <= 1'b1;
-      else result <= comb_y;
+      op   <= nop;
+      busy <= 1'b1;
+      cnt  <= 3'b0;
     end else if (busy) begin
-      if ((op == 4'd1 || op == 4'd2) && idiv_done) begin
-        result <= (op == 4'd1) ? idiv_q : idiv_r;
+      if (op == 4'd1 || op == 4'd2) begin
+        if (idiv_done) begin
+          result <= (op == 4'd1) ? idiv_q : idiv_r;
+          busy   <= 1'b0;
+        end
+      end else if (op == 4'd6) begin
+        if (fdiv_done) begin
+          result <= fdiv_y;
+          busy   <= 1'b0;
+        end
+      end else if (cnt == COMB_WAIT) begin
+        result <= comb_y;
         busy   <= 1'b0;
-      end else if (op == 4'd6 && fdiv_done) begin
-        result <= fdiv_y;
-        busy   <= 1'b0;
+      end else begin
+        cnt <= cnt + 3'b1;
       end
     end
   end

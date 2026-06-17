@@ -211,3 +211,8 @@ set_property -dict { PACKAGE_PIN B2    IOSTANDARD LVCMOS33 } [get_ports { PS2_DA
 #set_property -dict { PACKAGE_PIN L14   IOSTANDARD LVCMOS33 } [get_ports { QSPI_DQ[2] }]; #IO_L2P_T0_D02_14 Sch=qspi_dq[2]
 #set_property -dict { PACKAGE_PIN M14   IOSTANDARD LVCMOS33 } [get_ports { QSPI_DQ[3] }]; #IO_L2N_T0_D03_14 Sch=qspi_dq[3]
 #set_property -dict { PACKAGE_PIN L13   IOSTANDARD LVCMOS33 } [get_ports { QSPI_CSN }]; #IO_L6P_T0_FCS_B_14 Sch=qspi_csn
+
+set_multicycle_path -setup 4 -from [get_cells math_inst/rA_reg[*]] -to [get_cells math_inst/result_reg[*]]
+set_multicycle_path -hold  3 -from [get_cells math_inst/rA_reg[*]] -to [get_cells math_inst/result_reg[*]]
+set_multicycle_path -setup 4 -from [get_cells math_inst/rB_reg[*]] -to [get_cells math_inst/result_reg[*]]
+set_multicycle_path -hold  3 -from [get_cells math_inst/rB_reg[*]] -to [get_cells math_inst/result_reg[*]]
