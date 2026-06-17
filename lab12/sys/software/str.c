@@ -1,6 +1,6 @@
 #include "str.h"
 
-int streq(const char *a, const char *b) {
+int str_eq(const char *a, const char *b) {
     while (*a && *b) {
         if (*a != *b)
             return 0;
@@ -11,7 +11,7 @@ int streq(const char *a, const char *b) {
 }
 
 // string to integer
-int stoi(const char *s) {
+int str_to_i(const char *s) {
     int v = 0;
     while (*s == ' ')
         s++;
@@ -20,4 +20,20 @@ int stoi(const char *s) {
         s++;
     }
     return v;
+}
+
+int str_len(const char *s) {
+    int n = 0;
+    while (s[n])
+        n++;
+    return n;
+}
+
+void str_copy(char *dst, const char *src, int cap) {
+    int i = 0;
+    while (i < cap - 1 && src[i]) {
+        dst[i] = src[i];
+        i++;
+    }
+    dst[i] = '\0';
 }

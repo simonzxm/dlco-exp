@@ -1,3 +1,4 @@
+#include "fs.h"
 #include "io.h"
 #include "str.h"
 #include "sys.h"
@@ -59,8 +60,8 @@ static void cmd_time(const char *args) {
         print_char('\n');
         return;
     }
-    if (streq(args, "set") || (args[0] == 's' && args[1] == 'e' &&
-                               args[2] == 't' && args[3] == ' ')) {
+    if (str_eq(args, "set") || (args[0] == 's' && args[1] == 'e' &&
+                                args[2] == 't' && args[3] == ' ')) {
         const char *p = args + 3;
         while (*p == ' ')
             p++;
@@ -76,7 +77,7 @@ static void cmd_time(const char *args) {
 }
 
 static void cmd_fibn(const char *args) {
-    int n = stoi(args);
+    int n = str_to_i(args);
     unsigned int a = 0, b = 1;
     for (int i = 0; i < n; i++) {
         unsigned int t = a + b;
@@ -89,7 +90,14 @@ static void cmd_fibn(const char *args) {
 #define COMMAND_LIST(X)                                                        \
     X("hello", cmd_hello)                                                      \
     X("time", cmd_time)                                                        \
-    X("fibn", cmd_fibn)
+    X("fibn", cmd_fibn)                                                        \
+    X("pwd", cmd_pwd)                                                          \
+    X("cd", cmd_cd)                                                            \
+    X("ls", cmd_ls)                                                            \
+    X("cat", cmd_cat)                                                          \
+    X("mkdir", cmd_mkdir)                                                      \
+    X("rm", cmd_rm)                                                            \
+    X("rmdir", cmd_rmdir)
 
 static char *split_args(char *line) {
     char *p = line;
@@ -107,7 +115,7 @@ static void run_command(char *line) {
     char *cmd = line;
     char *args = split_args(line);
 #define X(name, fn)                                                            \
-    if (streq(cmd, name)) {                                                    \
+    if (str_eq(cmd, name)) {                                                   \
         fn(args);                                                              \
         return;                                                                \
     }
@@ -119,6 +127,7 @@ static void run_command(char *line) {
 
 int main() {
     vga_init();
+    fs_init();
     char line[80];
     while (1) {
         print_str("> ");
