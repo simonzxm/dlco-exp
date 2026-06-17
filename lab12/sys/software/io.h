@@ -8,6 +8,9 @@ void print_int(int n);
 void print_uint(unsigned int n);
 void print_char(char c);
 
+void out_redirect(char *buf, int cap);
+void out_restore(void);
+
 #define print_selector(x)                                                      \
     _Generic((x),                                                              \
         char *: print_str,                                                     \

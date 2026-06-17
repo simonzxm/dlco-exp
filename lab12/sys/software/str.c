@@ -37,3 +37,17 @@ void str_copy(char *dst, const char *src, int cap) {
     }
     dst[i] = '\0';
 }
+
+// Returns 1 if needle occurs in hay (empty needle always matches).
+int str_contains(const char *hay, const char *needle) {
+    if (!needle[0])
+        return 1;
+    for (; *hay; hay++) {
+        int i = 0;
+        while (hay[i] && needle[i] && hay[i] == needle[i])
+            i++;
+        if (!needle[i])
+            return 1;
+    }
+    return 0;
+}

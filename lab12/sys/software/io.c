@@ -77,18 +77,48 @@ void read_line(char *buf, int size) {
     }
 }
 
-void print_char(char c) { putch(c); }
+// Output sink
+static char *out_buf = 0;
+static int out_cap = 0;
+static int out_len = 0;
+
+void out_redirect(char *buf, int cap) {
+    out_buf = buf;
+    out_cap = cap;
+    out_len = 0;
+    if (cap > 0)
+        buf[0] = '\0';
+}
+
+void out_restore(void) {
+    out_buf = 0;
+    out_cap = 0;
+    out_len = 0;
+}
+
+static void out_char(char c) {
+    if (out_buf) {
+        if (out_len < out_cap - 1) {
+            out_buf[out_len++] = c;
+            out_buf[out_len] = '\0';
+        }
+        return;
+    }
+    putch(c);
+}
+
+void print_char(char c) { out_char(c); }
 
 void print_str(const char *s) {
     while (*s)
-        putch(*s++);
+        out_char(*s++);
 }
 
 void print_uint(unsigned int n) {
     char tmp[12];
     int i = 0;
     if (n == 0) {
-        putch('0');
+        out_char('0');
         return;
     }
     while (n) {
@@ -96,13 +126,13 @@ void print_uint(unsigned int n) {
         n /= 10u;
     }
     while (i > 0)
-        putch(tmp[--i]);
+        out_char(tmp[--i]);
 }
 
 void print_int(int n) {
     unsigned int u;
     if (n < 0) {
-        putch('-');
+        out_char('-');
         u = (unsigned int)(-(n + 1)) + 1u; // avoid INT_MIN overflow
     } else {
         u = (unsigned int)n;

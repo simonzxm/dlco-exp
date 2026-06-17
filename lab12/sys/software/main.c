@@ -87,10 +87,40 @@ static void cmd_fibn(const char *args) {
     println(a);
 }
 
+static void cmd_echo(const char *args) {
+    print(args);
+    print_char('\n');
+}
+
+// Input piped from the previous pipeline stage (0 when there is none).
+static const char *g_stdin = 0;
+
+static void cmd_grep(const char *args) {
+    const char *in = g_stdin;
+    if (!in)
+        return;
+    char line[160];
+    while (*in) {
+        int n = 0;
+        while (*in && *in != '\n') {
+            if (n < (int)sizeof line - 1)
+                line[n++] = *in;
+            in++;
+        }
+        line[n] = '\0';
+        if (*in == '\n')
+            in++;
+        if (str_contains(line, args))
+            println(line);
+    }
+}
+
 #define COMMAND_LIST(X)                                                        \
     X("hello", cmd_hello)                                                      \
     X("time", cmd_time)                                                        \
     X("fibn", cmd_fibn)                                                        \
+    X("echo", cmd_echo)                                                        \
+    X("grep", cmd_grep)                                                        \
     X("pwd", cmd_pwd)                                                          \
     X("cd", cmd_cd)                                                            \
     X("ls", cmd_ls)                                                            \
@@ -111,9 +141,10 @@ static char *split_args(char *line) {
     return p;
 }
 
-static void run_command(char *line) {
-    char *cmd = line;
-    char *args = split_args(line);
+// Run a single command (one pipeline stage). Output goes to the active sink.
+static void dispatch(char *stage) {
+    char *cmd = stage;
+    char *args = split_args(stage);
 #define X(name, fn)                                                            \
     if (str_eq(cmd, name)) {                                                   \
         fn(args);                                                              \
@@ -125,12 +156,55 @@ static void run_command(char *line) {
         println("Unknown Command.");
 }
 
+// Strip leading and trailing spaces in place.
+static char *trim_stage(char *s) {
+    while (*s == ' ')
+        s++;
+    int len = str_len(s);
+    while (len > 0 && s[len - 1] == ' ')
+        s[--len] = '\0';
+    return s;
+}
+
+#define MAX_STAGES 8
+#define PIPE_BUF 1024
+
+static void run_command(char *line) {
+    char *stages[MAX_STAGES];
+    int n = 0;
+    stages[n++] = line;
+    for (char *p = line; *p; p++) {
+        if (*p == '|') {
+            *p = '\0';
+            if (n < MAX_STAGES)
+                stages[n++] = p + 1;
+        }
+    }
+
+    static char bufA[PIPE_BUF], bufB[PIPE_BUF];
+    const char *prev = 0;
+    for (int i = 0; i < n; i++) {
+        char *stage = trim_stage(stages[i]);
+        char *cur = (i & 1) ? bufB : bufA;
+        g_stdin = prev;
+        if (i < n - 1)
+            out_redirect(cur, PIPE_BUF);
+        else
+            out_restore();
+        dispatch(stage);
+        if (i < n - 1)
+            prev = cur;
+    }
+    out_restore();
+    g_stdin = 0;
+}
+
 int main() {
     vga_init();
     fs_init();
     char line[80];
     while (1) {
-        print_str("> ");
+        print_str("$ ");
         read_line(line, sizeof line);
         run_command(line);
     }
