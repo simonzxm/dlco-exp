@@ -7,6 +7,7 @@ void print_str(const char *s);
 void print_int(int n);
 void print_uint(unsigned int n);
 void print_char(char c);
+void print_float(float f);
 
 void out_redirect(char *buf, int cap);
 void out_restore(void);
@@ -18,6 +19,7 @@ void out_restore(void);
         int: print_int,                                                        \
         unsigned int: print_uint,                                              \
         char: print_char,                                                      \
+        float: print_float,                                                    \
         default: print_int)
 
 #define print1(x) print_selector(x)(x)

@@ -1,3 +1,4 @@
+#include "calc.h"
 #include "fs.h"
 #include "io.h"
 #include "str.h"
@@ -125,6 +126,7 @@ static void cmd_clear(const char *args) {
     X("clear", cmd_clear)                                                      \
     X("time", cmd_time)                                                        \
     X("fibn", cmd_fibn)                                                        \
+    X("calc", cmd_calc)                                                        \
     X("echo", cmd_echo)                                                        \
     X("grep", cmd_grep)                                                        \
     X("pwd", cmd_pwd)                                                          \

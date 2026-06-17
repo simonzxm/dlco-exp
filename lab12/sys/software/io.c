@@ -1,4 +1,5 @@
 #include "io.h"
+#include "mathcop.h"
 #include "sys.h"
 
 #define KEY_HOME 0x01
@@ -138,4 +139,36 @@ void print_int(int n) {
         u = (unsigned int)n;
     }
     print_uint(u);
+}
+
+typedef union {
+    float f;
+    unsigned int u;
+} io_fu;
+
+void print_float(float f) {
+    io_fu x;
+    x.f = f;
+    if (x.u >> 31) {
+        out_char('-');
+        x.u &= 0x7fffffffu;
+        f = x.f;
+    }
+    int ip = mc_ftoi(f);
+    print_uint((unsigned int)ip);
+    out_char('.');
+
+    float frac = mc_fsub(f, mc_itof(ip));
+    char digit[6];
+    for (int k = 0; k < 6; k++) {
+        frac = mc_fmul(frac, 10.0f);
+        int d = mc_ftoi(frac);
+        digit[k] = (char)d;
+        frac = mc_fsub(frac, mc_itof(d));
+    }
+    int n = 6;
+    while (n > 1 && digit[n - 1] == 0)
+        n--;
+    for (int k = 0; k < n; k++)
+        out_char((char)('0' + digit[k]));
 }

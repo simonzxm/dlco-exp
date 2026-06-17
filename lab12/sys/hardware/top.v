@@ -45,7 +45,7 @@ module top (
   // Instruction ROM
   blk_mem_gen_1 imem (
       .clka (imemclk),
-      .addra(imemaddr[13:2]),
+      .addra(imemaddr[14:2]),
       .douta(imemdataout)
   );
 
@@ -99,9 +99,21 @@ module top (
       .time_reg(time_reg)
   );
 
+  wire        math_we = dmemwe & (dmemaddr[31:20] == 12'h005);
+  wire [31:0] math_rdata;
+  mathcop math_inst (
+      .clk  (CLK100MHZ),
+      .reset(reset),
+      .we   (math_we),
+      .addr (dmemaddr[4:0]),
+      .wdata(dmemdatain),
+      .rdata(math_rdata)
+  );
+
   assign dmemdataout = (dmemaddr[31:20] == 12'h001) ? dmem_out :
                        (dmemaddr[31:20] == 12'h003) ? key_reg :
-                       (dmemaddr[31:20] == 12'h004) ? time_reg : 32'b0;
+                       (dmemaddr[31:20] == 12'h004) ? time_reg :
+                       (dmemaddr[31:20] == 12'h005) ? math_rdata : 32'b0;
 
   // VGA output
   vga_ctrl vga_ctrl_inst (
